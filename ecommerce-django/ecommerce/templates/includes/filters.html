@@ -1,0 +1,77 @@
+    {% load static %}
+    <script type="text/javascript" src="{% static 'js/product_filter.js' %}"></script>
+    <h3 class="mb-4 border-bottom pb-1">Filters</h3>
+    <!--Price Filter-->
+    <div class="card mb-4">
+        <select name="sort" id="sort-list" class="form-control" onchange="location = finalurl();">
+            <option value="" id="placeholder" class="ordering" disabled selected hidden>Sort By</option>
+            <option id="price" value="variation.price" class="ordering">Price: Low to High</option>
+            <option id="-price" value="-variation.price" class="ordering">Price: High to Low</option>
+            <option id="product_name" value="product_name" class="ordering">Product Name</option>
+            <option id="-created_date" value="created_date" class="ordering">Recent Products</option>
+        </select>
+        <h6 class="card-header">Price</h6>
+        <div class="list-group list-group-flush">
+            <li class="list-group-item">
+                <input type="range" min="{{minMaxPrice.price__min}}" value="{{minMaxPrice.price__min}}" max="{{minMaxPrice.price__max}}" id="rangeInput" oninput="maxPrice.value=this.value" class="form-control"/>
+                <p>{{minMaxPrice.price__min}}-{{minMaxPrice.price__max}}</p>
+            </li>
+            <li class="list-group-item">
+                Max:<input type="number" class="form-control" value="{{minMaxPrice.price__min}}" min="{{minMaxPrice.price__min}}" max="{{minMaxPrice.price__max}}" id="maxPrice" onkeyup="rangeInput.value=this.value" />
+                <button class="btn btn-info btn-sm mt-1" id="priceFilterBtn">Filter</button>
+            </li>
+        
+        </div>
+    </div>    
+    <!-- Filter 1 -->
+    <div class="card mb-4">
+        <h6 class="card-header">Colors</h6>
+        <div class="list-group list-group-flush">
+            {% for color in colors %}
+            <li class="list-group-item">
+                <input class="filter-checkbox" value="{{color.color__id}}" data-filter="color" type="checkbox" />&nbsp;
+                <button class="btn" style="background-color: {{color.color__code}}; margin-top:-6px; border:1px solid gray"></button>
+            </li>
+            {% endfor %}
+        
+        </div>
+    </div>
+    <!-- Filter 2 -->
+    <div class="card mb-4">
+        <h6 class="card-header">Categories</h6>
+        <div class="list-group list-group-flush">
+            {% for cat in cats %}
+            <li class="list-group-item">
+                <input type="checkbox" class="filter-checkbox" data-filter="category" value="{{cat.category__id}}" />&nbsp;
+                {{cat.category__category_name}}
+            </li>
+            {% endfor %}
+            
+        </div>
+    </div>
+    <!-- Filter 3 -->
+    <div class="card mb-4">
+        <h6 class="card-header">Brands</h6>
+        <div class="list-group list-group-flush">
+            {% for brand in brands %}
+            <li class="list-group-item">
+                <input value="{{brand.brand__id}}" data-filter="brand" type="checkbox" class="filter-checkbox"/>&nbsp;
+                {{brand.brand__brand_name}}
+            </li>
+            
+            {% endfor %}
+        </div>
+    </div>
+    <!-- Filter 3 -->
+    <div class="card mb-4">
+        <h6 class="card-header">Sizes</h6>
+        <div class="list-group list-group-flush">
+            {% for size in sizes %}
+            <li class="list-group-item">
+                <input value="{{size.size__id}}" data-filter="size" type="checkbox" class="filter-checkbox" />&nbsp;
+                {{size.size__name}}    
+            </li>
+            {% endfor %}
+        
+        </div>
+    </div>

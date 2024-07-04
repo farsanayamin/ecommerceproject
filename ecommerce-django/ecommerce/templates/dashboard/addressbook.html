@@ -1,0 +1,61 @@
+{% extends "home/base.html" %}
+{% load static %}
+{% block content %}
+ <div class="text-center">
+     <a href="{% url 'add_address' %}" class="btn btn-success btn-lg mt-3"><i class="fa fa-plus"></i> Add Address</a>
+
+ </div>   
+<div class="container" style="margin: 0 auto;width: 50%;padding: 50px;background: #f1f1f1;margin-top: 50px;margin-bottom: 50px;">
+    <div class="row">
+
+        {% for add in addresses %}
+        
+
+            <div class="card {% if add.status %} border-secondary shadow {% endif %} address{{add.id}} address col-lg-5 ml-4">
+                <div class="card-body">
+                    {{add.first_name}} {{add.last_name}} <hr>
+            <p>
+                
+                {{add.address_line_1}}
+            </p>
+            <p>
+                
+                {{add.address_line_2}}
+            </p>
+            <p>
+                
+                {{add.city}}, {{add.state}}
+            </p>
+            <p>
+                
+                {{add.country}}, {{add.pincode}}
+            </p>
+            <p>
+                
+                <b>Phone:</b>{{add.phone}}
+            </p>
+            <p>
+                
+                <b>email:</b>{{add.email}}
+            </p>
+        </div>
+        {% if add.status %}
+        <div class="card-footer">
+            <i class="fa fa-check-circle text-success check{{add.id}} check"></i>
+            <button style="display: none;" data-address="{{add.id}}" class="btn btn-info btn-sm activate-address actbtn actbtn{{add.id}}">Activate</button>
+            <a href="{% url "edit_address" add.id %}" class="float-right"><i class="fa fa-edit"></i></a>
+        </div>
+{% else %}
+<div class="card-footer">
+    <i class="fa fa-check-circle text-success check{{add.id}} check" style="display: none;"></i>
+    <a href="{% url "activate" add.id %}" class="btn btn-info"> Activate </a>
+    <a href="{% url "edit_address" add.id %}" class="float-right"><i class="fa fa-edit"></i></a>
+</div>
+{% endif %}
+</div>
+
+{% endfor %}
+</div>
+</div>
+
+{% endblock content %}

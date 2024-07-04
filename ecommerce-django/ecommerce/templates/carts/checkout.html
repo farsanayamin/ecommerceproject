@@ -1,0 +1,211 @@
+{% extends "home/base.html" %}
+{% load static %}
+{% block content %}
+
+<section class="section-content padding-y bg">
+    <div class="container">
+        
+        <!-- ============================ COMPONENT 1 ================================= -->
+       
+        <div class="row">
+            <aside class="col-lg-6">
+            
+                <div class="card">
+                    <div class="card-body">
+                        <h4 class="card-title mb-4">Billing Address</h4>
+                        <form action="{% url "place_order" %}" method="post">
+                            {% csrf_token %}
+                            <div class="form-row">
+                                <div class="col form-group">
+                                    <label for="">First Name</label>
+                                    {{form.first_name}}
+                                </div>
+                                <div class="col form-group">
+                                    <label for="">Last Name</label>
+                                    {{form.last_name}}
+                                </div>
+                              </div>
+                            <div class="form-row">
+                                <div class="col form-group">
+                                    <label for="">Email</label>
+                                    {{form.email}}
+                                </div>
+                                <div class="col form-group">
+                                    <label for="">Phone Number</label>
+                                    {{form.phone}}
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="col form-group">
+                                    <label for="">Address Line 1</label>
+                                    {{form.address_line_1}}
+                                </div>
+                                <div class="col form-group">
+                                    <label for="">Address Line 2</label>
+                                    {{form.address_line_2}}
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="col form-group">
+                                    <label for=""> City </label>
+                                    {{form.city}}
+                                </div>
+                                <div class="col form-group">
+                                    <label for="">State</label>
+                                    {{form.state}}
+                                </div>
+                                <div class="col form-group">
+                                    <label for="">Country</label>
+                                    {{form.country}}
+                                </div>
+                                <div class="col form-group">
+                                    <label for="">Pin Code</label>
+                                    {{form.pincode}}
+                                </div>
+
+                            </div>
+                            <div class="form-row">
+                                <label for="">Order Note</label>
+                                {{form.order_note}}
+                            </div>
+                        </div> <!-- card.// -->
+
+                    <div class="row">
+                        {% for add in addresses %}
+
+                            <div class="card {% if add.status %} border-secondary shadow {% endif %} address{{add.id}} address col-lg-5 ml-4">
+                                <div class="card-body">
+                                    {{add.first_name}} {{add.last_name}} <hr>
+                                    <p>
+
+                                        {{add.address_line_1}}
+                                    </p>
+                                    <p>
+
+                                        {{add.address_line_2}}
+                                    </p>
+                                    <p>
+
+                                        {{add.city}}, {{add.state}}
+                                    </p>
+                                    <p>
+
+                                        {{add.country}}, {{add.pincode}}
+                                    </p>
+                                    <p>
+
+                                        <b>Phone:</b>{{add.phone}}
+                                    </p>
+                                    <p>
+
+                                        <b>email:</b>{{add.email}}
+                                    </p>
+                                </div>
+                                {% if add.status %}
+                                <div class="card-footer">
+                                    <i class="fa fa-check-circle text-success check{{add.id}} check"></i>
+                                    <button style="display: none;" data-address="{{add.id}}" class="btn btn-info btn-sm activate-address actbtn actbtn{{add.id}}">Activate</button>
+                                    <a href="{% url "edit_address" add.id %}" class="float-right"><i class="fa fa-edit"></i></a>
+                                </div>
+                        {% else %}
+                        <div class="card-footer">
+                            <i class="fa fa-check-circle text-success check{{add.id}} check" style="display: none;"></i>
+                            <a href="{% url "activate" add.id %}" class="btn btn-info"> Activate </a>
+                            <a href="{% url "edit_address" add.id %}" class="float-right"><i class="fa fa-edit"></i></a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    {% endfor %}
+                </div>
+                <a href="{% url "add_address" %}" class="btn btn-info"> <i class="fa fa-plus"></i></a>
+                </aside> <!-- col.// -->
+<aside class="col-lg-6">
+    
+
+   
+
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-borderless table-shopping-cart">
+                <thead class="text-muted">
+                    <tr class="small text-uppercase">
+                        <th scope="col">Product</th>
+                        <th scope="col" width="120">Quantity</th>
+                        <th scope="col" width="120">Price</th>
+                        <th scope="col" class="text-right" width="200"> </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cart_item in cart_items %}
+                    <tr>
+                        <td>
+                            <figure class="itemside align-items-center">
+                                <div class="aside"><img src="{{cart_item.variation.image}}" class="img-sm"></div>
+                                <figcaption class="info">
+                                    <a href="{{cart_item.product.get_url}}" class="title text-dark">{{cart_item.product.product_name}}</a>
+                                  
+                                </figcaption>
+                            </figure>
+</td>
+<td> 
+    <label for="">{{cart_item.quantity}}</label>
+</td>
+<td> 
+    <div class="price-wrap"> 
+        <var class="price">${{cart_item.sub_total}}</var> 
+        <small class="text-muted"> ${{cart_item.product.price}} </small> 
+    </div> <!-- price-wrap .// -->
+</td>
+
+
+</tr>
+{% endfor %}
+<tr>
+    <td colspan="2">
+        <small class="text-muted"> Tax :${{tax}} </small> <br>
+        {% if discount %}
+        <small class="text-muted"> discount :-${{discount}} ({{code}}) </small> 
+        {% endif %}
+        <var class="price"> Grand Total: ${{grand_total}}</var> 
+    </td>
+</tr>
+</tbody>
+</table>
+<input type="hidden" value="{{code}}" name="coupon">
+<button type="submit" class="btn btn-primary btn-block">Place Order</button>
+<a href="{% url "store" %}" class="btn btn-light btn-block">Continue Shopping</a>
+</form>
+</div> <!-- card-body.// -->
+</div> <!-- card.// -->
+
+
+<div class="card">
+    <div class="card-body">
+
+        {% include "home/alerts.html" %}
+        {% if not coupon_used %}
+        <div class="form-row ">
+            <div class="text-center col-lg-12">
+                <form action="{% url 'checkout' %}" method="get">
+                    <label for="" class="form-text">Coupon Code</label>
+                    {{coupon_form.code}}
+                    <button class="btn btn-success btn-block mt-3" type="submit">Redeem</button>
+                </form>
+            </div>
+        </div>
+            {% endif %}
+      
+    </div>
+</div>
+
+
+</aside> <!-- col.// -->
+
+
+</div> <!-- row.// -->
+<!-- ============================ COMPONENT 1 END .// ================================= -->
+
+</div> <!-- container .//  -->
+</section>
+<!-- ========================= SECTION CONTENT END// ========================= -->{% endblock content %}

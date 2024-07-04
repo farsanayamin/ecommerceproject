@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <form action="{% url "create_admin" %}" method="post">
+        {% csrf_token %}
+        {{form.as_p}}
+        <div class="text-center">
+
+            <input type="submit" class="btn btn-success btn-block btn-lg" value="Create">
+        </div>
+    </form>
+</div>
+
+{% endblock content %}

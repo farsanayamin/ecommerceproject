@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container-fluid">
+
+    <table class="table bg-white">
+        <thead class="bg-info">
+            <tr class="text-white">
+                <th scope="col">#</th>
+                <th scope="col">Admins</th>
+                <th scope="col">Actions</th>
+            </tr>
+        </thead>
+        {% for user in admins %}
+        <tbody>
+            <tr>
+                <th scope="row"> {{user.id}} </th>
+                <td>{{user.first_name}}</td>
+                <td>
+                    <button type="button" class="btn btn-danger btn" data-toggle="modal" data-target="#deleteModal{{user.id}}">
+                        Delete
+                    </button>
+                </td>
+            </tr>
+        </tbody>
+        <div class="modal fade" id="deleteModal{{user.id}}" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteModalLabel">Delete Confirmation</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure you want to delete {{user.first_name}} {{user.last_name}}?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <a href="{% url "delete_admin" user.id %}" class="btn btn-danger">Delete</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </table>
+    {% if admins.has_next or admins.has_previous %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if admins.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?pagea=1">&laquo; First</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?pagea={{admins.previous_page_number}}"> Previous </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="?pagea=1">&laquo; First</a>
+            </li>
+            <li class="page-item disabled">
+                <a class="page-link" href=""> Previous </a>
+            </li>
+            {% endif %}
+            <li class="page-item disabled">
+                <a href="#" class="page-link">
+                    {{admins.number}} of {{admins.paginator.num_pages}}
+                </a>
+            </li>
+            {% if admins.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?pagea={{admins.next_page_number}}">next</a>
+            </li>
+            <li class="page-item">
+                <a href="?pagea={{admins.paginator.num_pages}}" class="page-link">Last &raquo;</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#">next</a>
+            </li>
+            <li class="page-item disabled">
+                <a href="?pagea={{admins.paginator.num_pages}}" class="page-link">Last &raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    
+</div>     
+{% endblock content %}

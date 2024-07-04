@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+    <div class="container-fluid">
+        <h3>Categories <a href="{% url "add_category" %}" class="btn btn-success btn-lg float-right"><i class="fa fa-plus"></i></a> </h3>
+    <table class="table bg-white">
+        <thead class="bg-info">
+            <tr class="text-white">
+                <th scope="col">Category ID</th>
+                <th scope="col">Category Name</th>
+                <th>Image</th>
+                <th scope="col">Offers</th>
+                <th scope="col">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat in categories %}
+            <tr>
+                <th scope="row"> {{cat.id}} </th>
+                <td> {{cat.category_name}} 
+                </td>
+                <td>
+                    <img src="{{cat.cat_image.url}}" alt="{{cat.cat_name}}" height="50px" width="50px">
+                </td>
+                <td> {{cat.offer}} </td>
+               <td>
+                <a href="{% url "edit_category" cat.id %}" class="btn btn-warning"> <i class="fa fa-edit"></i> Edit Category</a>
+                <button type="button" class="btn btn-danger btn" data-toggle="modal" data-target="#deleteModal{{cat.id}}">
+                   <i class="fa fa-trash"></i> Delete Category
+                </button>               
+            </td>
+            <div class="modal fade" id="deleteModal{{cat.id}}" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="deleteModalLabel">Delete Confirmation</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            Are you sure you want to delete {{cat.category_name}}?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                            <a href="{% url "delete_category" cat.id %}" class="btn btn-danger">Delete</a>
+                        </div>
+                    </div>
+                </div>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if categories.has_previous or categories.has_next %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if categories.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">&laquo; First</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{categories.previous_page_number}}"> Previous </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="?page=1">&laquo; First</a>
+            </li>
+            <li class="page-item disabled">
+                <a class="page-link" href=""> Previous </a>
+            </li>
+            {% endif %}
+            <li class="page-item disabled">
+                <a href="#" class="page-link">
+                    Page : {{categories.number}} of {{categories.paginator.num_pages}}
+                </a>
+            </li>
+            {% if categories.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{categories.next_page_number}}">next</a>
+            </li>
+            <li class="page-item">
+                <a href="?page={{categories.paginator.num_pages}}" class="page-link">Last &raquo;</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#">next</a>
+            </li>
+            <li class="page-item disabled">
+                <a href="?page={{categories.paginator.num_pages}}" class="page-link">Last &raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+               
+{% endblock content %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center">
+    <h3>{% if '/add_product' in request.path %} Add Product {% else %} Edit Product {% endif %}</h3>
+
+</div>
+<div class="container">
+    <form action="" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{form.as_p}}
+        {{image_form.as_p}}
+
+        <div class="text-center">
+
+            <input type="submit" class="btn btn-success btn-block btn-lg" value="Save">
+        </div>
+    </form>
+
+    <div class="row">
+        <table>
+            {% for image in images %}
+            <tr>
+                <td>
+                    <img src="{{image.image.url}}" alt="{{image.product}}" height="50px" width="50px">
+                </td>
+                <td>
+                    <a href="{% url "delete_image" image.id %}" class="btn btn-danger"><i class="fa fa-trash"></i></a>
+                </td>
+                <td>
+                    <b>Image ID</b>:{{image.id}}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+
+
+
+{% endblock content %}

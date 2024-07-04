@@ -1,0 +1,63 @@
+{% extends "home/base.html" %}
+{% block content %}
+
+{% include "home/alerts.html" %}
+
+<!-- ========================= SECTION CONTENT ========================= -->
+<section class="section-conten padding-y bg">
+
+    <div class="container">
+        <div class="row">
+        {% include "includes/dashboard_sidebar.html" %}
+        <main class="col-md-9">
+            <article class="card">
+            <header class="card-header">
+                <strong class="d-inline-block mr-3">Your Wishlist:</strong>
+            </header>
+            <div class="card-body">
+                <div class="row"> 
+                       
+                    <div class="col-md-12">
+                        <table class="table table-hover">
+                            <thead>
+                              <tr>
+                                <th scope="col"> Image </th>
+                                <th scope="col">Product</th>
+                                <th scope="col">Categoryr</th>
+                                <th scope="col">Brand</th>
+                                <th scope="col"> Price</th>
+                                <th></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for list in wishlist %}
+                              <tr>
+                                <th scope="row"><img src="{{list.product.image.url}}" alt="" height="50" width="50"></th>
+                                <td>{{list.product.product_name}}</td>
+                                <td>{{list.product.category}}</td>
+                                <td>{{list.product.brand}}</td>
+                                <td>${{list.product.price}}</td>
+                                <td><a href="{% url "product_detail" list.product.brand.slug list.product.slug %}" class="btn btn-success"> View Details</a></td>
+
+                              </tr>
+                              {% endfor %}
+                              
+                            </tbody>
+                          </table>
+                    </div> 
+                </div> <!-- row.// -->
+            </div> <!-- card-body .// -->
+            <div class="table-responsive">
+            </div> <!-- table-responsive .end// -->
+            </article> <!-- order-group.// --> 
+        </main>
+    </div> <!-- row.// -->
+    </div>
+    
+    
+    </section>
+    <!-- ========================= SECTION CONTENT END// ========================= -->
+    
+    
+
+{% endblock content %}

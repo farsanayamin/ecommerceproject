@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+    <div class="container-fluid">
+        <h3>Variations <a href="{% url "add_variation" %}" class="btn btn-success btn-lg float-right"><i class="fa fa-plus"></i> Add Variant</a> </h3>
+    <table class="table bg-white w-100">
+        <thead class="bg-info">
+            <tr class="text-white">
+                <th scope="col">Variation ID</th>
+                <th scope="col"> Product </th>
+                <th scope="col">Color</th>
+                <th scope="col">Size</th>
+                <th scope="col">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for i in data %}
+            <tr>
+                <th scope="row"> {{i.id}} </th>
+                <td> 
+                    {{i.product}} 
+                </td>
+               <td> {{i.color}} </td>
+               <td> {{i.size}} </td>
+               <td>
+                <a href="{% url "edit_variation" i.id %}" class="btn btn-warning btn-sm"> <i class="fa fa-edit"></i> Edit Variation</a>
+                <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deleteModal{{i.id}}">
+                   <i class="fa fa-trash"></i> Delete Variation
+                </button>               
+            </td>
+            <div class="modal fade" id="deleteModal{{i.id}}" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel" aria-hidden="true">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="deleteModalLabel">Delete Confirmation</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            Are you sure you want to delete  {{i.product}} {{i.variation_value}}?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                            <a href="{% url "delete_variation" i.id %}" class="btn btn-danger">Delete</a>
+                        </div>
+                    </div>
+                </div>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if data.has_previous or data.has_next %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {% if data.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">&laquo; First</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{data.previous_page_number}}"> Previous </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="?page=1">&laquo; First</a>
+            </li>
+            <li class="page-item disabled">
+                <a class="page-link" href=""> Previous </a>
+            </li>
+            {% endif %}
+            <li class="page-item disabled">
+                <a href="#" class="page-link">
+                    Page : {{data.number}} of {{data.paginator.num_pages}}
+                </a>
+            </li>
+            {% if data.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{data.next_page_number}}">next</a>
+            </li>
+            <li class="page-item">
+                <a href="?page={{data.paginator.num_pages}}" class="page-link">Last &raquo;</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#">next</a>
+            </li>
+            <li class="page-item disabled">
+                <a href="?page={{data.paginator.num_pages}}" class="page-link">Last &raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+               
+{% endblock content %}

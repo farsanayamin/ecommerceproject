@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+    {% block content %}
+ 
+                            
+    <div class="container">
+        <div class="col-md-9">
+
+          <h1>Sales Report</h1>
+          <form method="GET" action="">
+              <label for="start_date">Start Date:</label>
+              <input type="date" id="start_date" name="start_date" class="form-control">
+              <label for="end_date">End Date:</label>
+              <input type="date" id="end_date" name="end_date" class="form-control">
+              <input type="submit" value="Get Sales Data" class="form-control mt-4 btn btn-outline-primary">
+          </form>
+       
+            
+            <div>
+                <canvas id="myChart"></canvas>
+            </div>
+        </div>
+        <form action="{% url 'download_sales_report' %}">
+          <input type="hidden" value="{{start_date}}" name="start_date" >
+          <input type="hidden" value="{{end_date}}" name="end_date" >
+          <button class="btn btn-primary" >Download Sales Report</button>   
+        </form>
+    </div>                      
+           
+
+    <script>
+      const ctx = document.getElementById('myChart');
+     
+      // Parse the sales_json string to a JavaScript object
+      const sales = JSON.parse('{{ sales|escapejs }}');
+     
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sales.map(sale => sale.date),
+          datasets: [{
+            label: 'Total Revenue by Date',
+            data: sales.map(sale => sale.total_revenue),
+            borderWidth: 1,
+          }],
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            },
+            x: {
+              type: 'category',
+              time: {
+                unit: 'day',
+                displayFormats: {
+                  day: 'MMM D, YYYY'
+                }
+              }
+            }
+          }
+        }
+      });
+     </script>
+     
+                
+    {% endblock content %}

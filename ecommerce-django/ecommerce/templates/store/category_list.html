@@ -1,0 +1,56 @@
+{% extends "home/base.html" %}
+{% load static %}
+{% block content %}
+
+<!-- ========================= SECTION MAIN ========================= -->
+<section class="section-intro padding-y-sm">
+	<div class="container">
+		
+		<div class="intro-banner-wrap">
+			<img src="{% static 'images/banners/banner.jpg' %}" class="img-fluid rounded">
+</div>
+
+</div> <!-- container //  -->
+</section>
+<!-- ========================= SECTION MAIN END// ========================= -->
+
+<!-- ========================= SECTION  ========================= -->
+<section class="section-name padding-y-sm">
+	<div class="container">
+		
+		<header class="section-heading">
+			<a href="{% url 'store' %}" class="btn btn-outline-primary float-right">See all Products</a>
+			<h3 class="section-title">Categories</h3>
+</header><!-- sect-heading -->
+
+
+<div class="row">
+	{% for category in categories %}
+	<div class="col-md-3">
+		<div class="card card-product-grid">
+			<a href="{% url 'products_by_category' category.slug %}" class="img-wrap">  <img src="{{category.cat_image.url}}"> </a>
+			<figcaption class="info-wrap">
+				<b>
+					<p>
+
+						<a href="{% url 'products_by_category' category.slug %}" class="title text-center">  {{category.category_name}} </a>
+					</p>
+
+				</b>
+				
+				
+			</figcaption>
+			
+		</div>
+	</div> 
+	{% endfor %}
+</div> <!-- row.// -->
+
+</div><!-- container // -->
+</section>
+<!-- ========================= SECTION  END// ========================= -->
+
+
+{% endblock content %}
+
+
