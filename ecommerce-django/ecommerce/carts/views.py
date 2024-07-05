@@ -23,72 +23,54 @@ def _cart_id(request):
     return cart
 
 
+from django.http import JsonResponse
 
 def add_cart(request, product_id):
     current_user = request.user
-    product = Product.objects.get(id = product_id)
+    product = Product.objects.get(id=product_id)
     size = request.GET['size']
     color = request.GET['color']
-    variation = Variation.objects.get(product = product, color_id = color, size_id = size)
-        
-    # check user authetication
+    variation = Variation.objects.get(product=product, color_id=color, size_id=size)
+    
+    max_quantity_per_person = 3  # Set the max quantity per person for the same item
+    
     if current_user.is_authenticated:
+        # Remove from wishlist if exists
+        Wishlist.objects.filter(user=current_user, product=product).delete()
 
-        wishlist_item = Wishlist.objects.filter(user = current_user, product=product)
+        # Get or create a cart for the session
+        cart, created = Cart.objects.get_or_create(cart_id=_cart_id(request))
 
-        wishlist_item.delete()
-        try:
-            cart = Cart.objects.get(cart_id=_cart_id(request))  # Session cart ID
-        except Cart.DoesNotExist:
-            cart = Cart.objects.create(
-                cart_id=_cart_id(request)
-            )
-            cart.save()
-        is_cart_item_exists = CartItem.objects.filter(cart=cart, variation=variation).exists()
-        print(is_cart_item_exists)
-        if is_cart_item_exists:
-            cart_item = CartItem.objects.get(cart= cart,variation =variation)
-            cart_item.quantity +=1
-            cart_item.user = request.user
-            cart_item.save()
-        else:
-            cart_item = CartItem.objects.create(
-                product = product,
-                variation = variation,
-                quantity =1,
-                cart = cart,    
-            )      
+        # Check if the item already exists in the cart
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            variation=variation,
+            defaults={'quantity': 1, 'user': current_user, 'product': product}
+        )
 
-            cart_item.user = request.user
+        if not created:  # Item already in cart
+            if cart_item.quantity + 1 > max_quantity_per_person:
+                return JsonResponse({'error': f"Cannot add more than {max_quantity_per_person} of the same item."})
+            cart_item.quantity += 1
             cart_item.save()
 
     else:
-        try:
-            cart = Cart.objects.get(cart_id=_cart_id(request))  # Session cart ID
-        except Cart.DoesNotExist:
-            cart = Cart.objects.create(
-                cart_id=_cart_id(request)
-            )
-            cart.save()
+        # Handle for guest users (non-authenticated)
+        cart, created = Cart.objects.get_or_create(cart_id=_cart_id(request))
 
-        is_cart_item_exists = CartItem.objects.filter(cart=cart, variation=variation).exists()
-        print(is_cart_item_exists)
-        if is_cart_item_exists:
-            cart_item = CartItem.objects.get(cart=cart, variation=variation)
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            variation=variation,
+            defaults={'quantity': 1, 'product': product}
+        )
+
+        if not created:  # Item already in cart
+            if cart_item.quantity + 1 > max_quantity_per_person:
+                return JsonResponse({'error': f"Cannot add more than {max_quantity_per_person} of the same item."})
             cart_item.quantity += 1
             cart_item.save()
-        else:
-            cart_item = CartItem.objects.create(
-                product=product,
-                variation = variation,
-                quantity=1,
-                cart=cart,
-            )
 
-    context = {
-        'bool':True
-    }
-    return JsonResponse(context)
+    return JsonResponse({'success': True, 'quantity': cart_item.quantity})
 
 
 
