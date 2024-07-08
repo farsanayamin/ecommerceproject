@@ -1,37 +1,40 @@
 $(document).ready(function(){
     $('.ajaxLoader').hide();
     
-    // Initialize the selectedSortValue to an empty string.
     var selectedSortValue = '';
 
     // Event handler for the "Sort By" dropdown.
     $('#sort-list').on('change', function(){
         selectedSortValue = $(this).val();
-        filterAndSortProducts(selectedSortValue); // Pass the selectedSortValue to the function.
+        console.log('Selected Sort Value:', selectedSortValue); // Debugging
+        filterAndSortProducts(selectedSortValue);
     });
 
-    // Event handler for other filters.
+    // Event handler for other filters (checkboxes and price filter).
     $(".filter-checkbox, #priceFilterBtn").on('click', function(){
-        filterAndSortProducts(selectedSortValue); // Pass the selectedSortValue to the function.
+        filterAndSortProducts(selectedSortValue);
     });
 
     function filterAndSortProducts(sortValue) {
-        var _filterObj = {};
-        var _minPrice = $('#maxPrice').attr('min');
-        var _maxPrice = $('#maxPrice').val();
-        _filterObj.minPrice = _minPrice;
-        _filterObj.maxPrice = _maxPrice;
-        _filterObj.sort = sortValue; // Use the passed sortValue.
+        var _filterObj = {
+            minPrice: $('#maxPrice').attr('min'),
+            maxPrice: $('#maxPrice').val(),
+            sort: sortValue
+        };
 
-        $('.filter-checkbox').each(function(index, ele){
-            var _filterVal = $(this).val();
+        // Handle checkboxes
+        $('.filter-checkbox:checked').each(function(index, ele){
             var _filterKey = $(this).data('filter');
-            _filterObj[_filterKey] = Array.from(document.querySelectorAll('input[data-filter='+ _filterKey +']:checked')).map(function(el){
-                return el.value;
-            });
+            if (!_filterObj[_filterKey]) {
+                _filterObj[_filterKey] = [];
+            }
+            _filterObj[_filterKey].push($(this).val());
         });
 
-        // Ajax 
+        // Print the filter object for debugging
+        console.log('Filters being sent:', _filterObj);
+
+        // Ajax request
         $.ajax({
             url: '/store/filter_data',
             data: _filterObj,
@@ -40,11 +43,18 @@ $(document).ready(function(){
                 $('.ajaxLoader').show();
             },
             success: function(res){
-                console.log(res);
+                console.log('Response:', res);
                 $("#filteredProducts").html(res.data);
+
+                // Check if the response correctly reflects the sort value
+                console.log('Sort applied:', sortValue);
+            },
+            error: function(xhr, status, error) {
+                console.error('Error:', error);
+            },
+            complete: function(){
                 $('.ajaxLoader').hide();
             }
         });
     }
 });
-

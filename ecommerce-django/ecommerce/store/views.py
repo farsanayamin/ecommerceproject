@@ -61,8 +61,12 @@ def store(request, category_slug = None, brand_slug = None):
 
 def product_detail(request, brand_slug, product_slug):
     try:
+        
         single_product = Product.objects.get(brand__slug = brand_slug, slug = product_slug)
         in_cart = CartItem.objects.filter(cart__cart_id = _cart_id(request), product = single_product).exists()
+         # Check if the product is in the wishlist
+        in_wishlist = Wishlist.objects.filter(product=single_product, user=request.user).exists()
+    
     except Exception as e:
         raise e
     
@@ -89,6 +93,7 @@ def product_detail(request, brand_slug, product_slug):
         'product_gallery' : product_gallery,
         'sizes':size,
         'colors':colors,
+        'in_wishlist':in_wishlist
         # 'variant':variant,
         
     }

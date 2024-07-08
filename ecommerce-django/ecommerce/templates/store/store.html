@@ -68,11 +68,7 @@
                           </div> 
                     </div>
                     <a href="{{product.get_url}}" class="btn btn-block btn-primary w-100">View Details </a>
-                {% if user.is_authenticated %}
-                <a href="{% url "add_to_wishlist" product.id %}" class="btn btn-block btn-danger"><i class="fa fa-heart"></i>Add to Wishlist</a>
-                {% else %}
-                <a href="#" class="btn btn-danger btn-block disabled w-100"><i class="fa fa-heart"></i> Add to Wishlist</a>
-                {% endif %}
+                
                 </figcaption>
             </figure>
         </div> <!-- col.// -->

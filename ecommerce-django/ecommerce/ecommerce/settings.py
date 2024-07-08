@@ -77,6 +77,7 @@ TEMPLATES = [
                 'store.context_processor.brand_links',
                 'store.context_processor.get_filters',
                 'carts.context_processor.counter',
+                'wishlist.context_processor.wishlist_count',
             ],
         },
     },
@@ -137,17 +138,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
-import os
+# settings.py
+
+# Static files (CSS, JavaScript, Images)
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
 # Directory to collect static files for production
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # Ensure this directory is different from any in STATICFILES_DIRS
-#STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 
-# Directories to search for static files during development
-STATICFILES_DIRS = [
-    BASE_DIR /'static',  # This should point to the directory where your static files are during development
-    # Add other directories if needed, but make sure they exist
-]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

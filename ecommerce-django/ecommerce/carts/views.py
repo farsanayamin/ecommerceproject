@@ -25,18 +25,25 @@ def _cart_id(request):
 
 from django.http import JsonResponse
 
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect
+
+
 def add_cart(request, product_id):
     current_user = request.user
-    product = Product.objects.get(id=product_id)
+    product = get_object_or_404(Product, id=product_id)
     size = request.GET['size']
     color = request.GET['color']
-    variation = Variation.objects.get(product=product, color_id=color, size_id=size)
+    variation = get_object_or_404(Variation, product=product, color_id=color, size_id=size)
     
     max_quantity_per_person = 3  # Set the max quantity per person for the same item
     
     if current_user.is_authenticated:
         # Remove from wishlist if exists
         Wishlist.objects.filter(user=current_user, product=product).delete()
+
+        # Calculate the unique items count in the wishlist after deletion
+        unique_items_count = Wishlist.objects.filter(user=current_user).count()
 
         # Get or create a cart for the session
         cart, created = Cart.objects.get_or_create(cart_id=_cart_id(request))
@@ -54,6 +61,13 @@ def add_cart(request, product_id):
             cart_item.quantity += 1
             cart_item.save()
 
+        # Return JSON response for AJAX handling
+        return JsonResponse({
+            'success': True,
+            'quantity': cart_item.quantity,
+            'unique_items_count': unique_items_count
+        })
+
     else:
         # Handle for guest users (non-authenticated)
         cart, created = Cart.objects.get_or_create(cart_id=_cart_id(request))
@@ -70,7 +84,14 @@ def add_cart(request, product_id):
             cart_item.quantity += 1
             cart_item.save()
 
-    return JsonResponse({'success': True, 'quantity': cart_item.quantity})
+        # For non-authenticated users, you might want to handle wishlist count separately or skip this part
+
+        # Just for consistency, let's redirect to referrer and set the cookie
+        url = request.META.get('HTTP_REFERER', '/')
+        response = redirect(url)
+        response.set_cookie('unique_items_count', 0)  # Or some default value if not calculating for guests
+        return response
+
 
 
 

@@ -155,7 +155,20 @@
                             <span class="badge badge-pill badge-danger notify"> {{cart_count}} </span>
                             
                         </a>
-                        
+                        <a href="{% url 'my_wishlist' %}" class="widget-header pl-3 ml-3">
+                            <div class="icon icon-sm rounded-circle border"><i class="fas fa-heart"></i>
+                            </div>
+                            <span class="badge badge-pill badge-danger notify">{{unique_items_count}}</span>
+                        </a>
+
+
+                        <!--
+                        <li class="nav-item">
+        <a class="nav-link" href="/wishlist">
+          <i class="fas fa-heart"></i> <!-- Font Awesome wishlist icon 
+          <span class="badge badge-danger" id="wishlist-count">0</span> <!-- Wishlist item count badge -->
+        
+             
                     </div> <!-- widgets-wrap.// -->
 
                 </div> <!-- col.// -->
@@ -166,14 +179,70 @@
 
     </section> <!-- header-main .// -->
 
-    
-
-    
-
-    
-
-    
 
     </header> <!-- section-header.// -->
 
-    
+  <!-- Ensure jQuery is loaded before this script -->
+<!-- Include jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    // Function to add a product to the wishlist
+    function addToWishlist(productId) {
+        $.ajax({
+            type: "POST",
+            url: "/add_to_wishlist/" + productId + "/",  // Ensure URL matches Django's pattern
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}'  // Include CSRF token dynamically
+            },
+            headers: {
+                'x-requested-with': 'XMLHttpRequest'  // Set the required header for AJAX
+            },
+            success: function(response) {
+                if (response.bool) {
+                    // Update the wishlist badge with the count of unique items
+                    $('.widget-header .badge.notify').text(response.unique_items_count);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error:', error);
+            }
+        });
+    }
+
+    // Ensure DOM is ready before attaching event handlers
+    $(document).ready(function() {
+        // Attach the addToWishlist function to click events on elements with class .add-to-wishlist
+        $('.add-to-wishlist').on('click', function(e) {
+            e.preventDefault();  // Prevent default action (e.g., link navigation)
+            var productId = $(this).data('product-id');  // Get the product ID from data attribute
+            addToWishlist(productId);  // Call the function with the product ID
+        });
+    });
+
+
+    function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// On page load, update the wishlist count from the cookie
+$(document).ready(function() {
+    const uniqueItemsCount = getCookie('unique_items_count');
+    if (uniqueItemsCount) {
+        $('.wishlist-count').text(uniqueItemsCount);
+    }
+});
+
+</script>
+

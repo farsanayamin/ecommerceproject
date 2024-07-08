@@ -90,9 +90,38 @@
                       <input type="hidden" class="product-name" value="{{single_product.product_name}}">
                       <button type="button" class="btn btn-primary" id="addToCartBtn"><span class="text">Add to cart</span> <i class="fas fa-shopping-cart"></i></button>
 
+
+
+
+            
+            {% if in_wishlist %}
+                <!-- Remove from wishlist form -->
+                <form action="{% url 'remove_from_wishlist' single_product.id %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <span class="text">Remove from wishlist</span> 
+                        <i class="fas fa-heart text-white"></i> <!-- Wishlist icon -->
+                    </button>
+                </form>
+            {% else %}
+                <!-- Add to wishlist form -->
+                <form action="{% url 'add_to_wishlist' single_product.id %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">
+                        <span class="text">Add to wishlist</span>
+                        <i class="fas fa-heart text-white"></i> <!-- Cart icon -->
+                    </button>
+                </form>
+            {% endif %}
+       
+
+                    </div>
+                    
+    </div> <!-- container .// -->
+</section>
                     </div>
               </div>
-                  
+                 
               
 
                

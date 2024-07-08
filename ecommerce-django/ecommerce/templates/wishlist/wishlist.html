@@ -23,9 +23,10 @@
                               <tr>
                                 <th scope="col"> Image </th>
                                 <th scope="col">Product</th>
-                                <th scope="col">Categoryr</th>
+                                <th scope="col">Category</th>
                                 <th scope="col">Brand</th>
                                 <th scope="col"> Price</th>
+                                <th scope="col">Remove</th>
                                 <th></th>
                               </tr>
                             </thead>
@@ -36,7 +37,8 @@
                                 <td>{{list.product.product_name}}</td>
                                 <td>{{list.product.category}}</td>
                                 <td>{{list.product.brand}}</td>
-                                <td>${{list.product.price}}</td>
+                                
+                                <td>${{list.variation.price}}
                                 <td><a href="{% url "product_detail" list.product.brand.slug list.product.slug %}" class="btn btn-success"> View Details</a></td>
 
                               </tr>
