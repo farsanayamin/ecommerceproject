@@ -24,6 +24,9 @@ from django.db.models.functions import TruncDate
 import json
 from django.core.serializers.json import DjangoJSONEncoder
 import requests
+from django.db.models.functions import TruncDay,TruncMonth,TruncWeek,TruncYear
+from django.db.models import Sum
+
 
 from django.utils import timezone
 
@@ -81,39 +84,62 @@ def decorator(request):
 
 @login_required(login_url='login')
 def useradmin(request):
-    if request.user.is_admin:
-        yesterday = datetime.now() - timedelta(days=1) 
-        today = datetime.now() + timedelta(days=1)
-        start_date = request.GET.get('start_date', yesterday.strftime('%B %d, %Y, midnight'))
-        end_date = request.GET.get('end_date', today.strftime('%B %d, %Y, midnight'))
-        
-        try:
-            start_date = datetime.strptime(start_date, '%B %d, %Y, midnight').date()
-        except ValueError:
-            start_date = yesterday.date()
-        
-        try:
-            end_date = (datetime.strptime(end_date, '%B %d, %Y, midnight').date() + timedelta(days=1))
-        except ValueError:
-            end_date = today.date() + timedelta(days=1)
-        
-        orders = Order.objects.filter(Q(created_at__gte=start_date) & Q(created_at__lte=end_date))
-        
-        sales = orders.annotate(date=TruncDate('created_at')).values('date').annotate(total_revenue=Sum('order_total'))
-        sales_list = [{'date': sale['date'].strftime('%Y-%m-%d'), 'total_revenue': sale['total_revenue']} for sale in sales]
-        sales_json = json.dumps(sales_list, cls=DjangoJSONEncoder)
-
-        context = {
-            'orders': orders,
-            'sales': sales_json,
-            'start_date': start_date,
-            'end_date': end_date,
-        }
-        return render(request, 'index.html', context)
-    else:
+    if not request.user.is_admin:
         return redirect('decorator')
 
-    
+    period = request.GET.get('period', 'daily')
+    start_date_str = request.GET.get('start_date', '')
+    end_date_str = request.GET.get('end_date', '')
+
+    today = datetime.now().date()
+    start_date, end_date = None, None
+
+    if period == 'custom' and start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() + timedelta(days=1)
+        except ValueError:
+            start_date, end_date = today - timedelta(days=1), today + timedelta(days=1)
+    else:
+        if period == 'weekly':
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=7)
+        elif period == 'monthly':
+            start_date = today.replace(day=1)
+            next_month = start_date.replace(day=28) + timedelta(days=4)
+            end_date = next_month - timedelta(days=next_month.day - 1)
+        elif period == 'yearly':
+            start_date = today.replace(month=1, day=1)
+            end_date = start_date.replace(year=start_date.year + 1)
+        else:  # daily
+            start_date = today
+            end_date = start_date + timedelta(days=1)
+
+    orders = Order.objects.filter(Q(created_at__gte=start_date) & Q(created_at__lte=end_date))
+
+    if period == 'daily':
+        sales = orders.annotate(date=TruncDay('created_at')).values('date').annotate(total_revenue=Sum('order_total'))
+    elif period == 'weekly':
+        sales = orders.annotate(date=TruncWeek('created_at')).values('date').annotate(total_revenue=Sum('order_total'))
+    elif period == 'monthly':
+        sales = orders.annotate(date=TruncMonth('created_at')).values('date').annotate(total_revenue=Sum('order_total'))
+    elif period == 'yearly':
+        sales = orders.annotate(date=TruncYear('created_at')).values('date').annotate(total_revenue=Sum('order_total'))
+    else:  # custom
+        sales = orders.annotate(date=TruncDay('created_at')).values('date').annotate(total_revenue=Sum('order_total'))
+
+    sales_list = [{'date': sale['date'].strftime('%Y-%m-%d'), 'total_revenue': sale['total_revenue']} for sale in sales]
+    sales_json = json.dumps(sales_list, cls=DjangoJSONEncoder)
+
+    context = {
+        'orders': orders,
+        'sales': sales_json,
+        'start_date': start_date.strftime('%Y-%m-%d') if start_date else '',
+        'end_date': end_date.strftime('%Y-%m-%d') if end_date else '',
+        'period': period,
+    }
+
+    return render(request, 'index.html', context)
 #=====================================================CUSTOMERS=================================================================
 
 def customers(request):
@@ -529,9 +555,6 @@ def delete_color(request, color_id):
     color.delete()
     return redirect('colors_size')
 
-
-
-# ==============================================================================ORDERS==========================================================================
 def authenticate_paypal_client(request):
    # Define the URL for the OAuth 2.0 token endpoint
    url = "https://api-m.sandbox.paypal.com/v1/oauth2/token"
@@ -566,8 +589,7 @@ def authenticate_paypal_client(request):
    else:
        return None
 
-from django.shortcuts import get_object_or_404
-from orders.models import wallet 
+
 
 def refund_payment(request, order_id):
  # Authenticate the PayPal client
@@ -600,9 +622,6 @@ def refund_payment(request, order_id):
  print(response.json())
 
  if response.status_code == 201:
-    wallet1 = get_object_or_404(wallet, user=order.user)
-    wallet1.amount += order.order_total  # Assuming order_total is the refunded amount
-    wallet1.save()
     order.is_refunded = True
     order.save()
     return redirect('cancelled_orders')

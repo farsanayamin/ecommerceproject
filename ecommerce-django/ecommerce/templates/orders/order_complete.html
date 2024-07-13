@@ -75,7 +75,7 @@
                                                      </p>
                                                 </td>
                                                 <td class="text-center"> {{item.quantity}} </td>
-                                                <td class="text-center"> price:${{ item.product_price | floatformat:2 }}<br>
+                                                <td class="text-center"> price:${{ item.product_price | floatformat:2 }}USD<br>
                                                
                                                
                                             </tr>
@@ -85,23 +85,23 @@
                                         <tfoot>
                                             <tr>
                                                 <th colspan="2" class="text-right">Sub Total(offer applied if any):</th>
-                                                <th class="text-center">${{subtotal}}</th>
+                                                <th class="text-center">${{subtotal}}USD</th>
                                             </tr>
                                             <tr>
                                                 <th colspan="2" class="text-right">Tax:</th>
-                                                <th class="text-center">${{order.tax}}</th>
+                                                <th class="text-center">${{order.tax}}USD</th>
                                             </tr>
 
                                             {% if order.coupon %}
                                             <tr>
                                                 <th colspan="2" class="text-right">Coupen Discounts:</th>
-                                                <th class="text-center">-${{order.coupon.discount_price}}</th>
+                                                <th class="text-center">-${{order.coupon.discount_price}}USD</th>
                                             </tr>
                                             {% endif %}
                                             
                                             <tr>
                                                 <th colspan="2" class="text-right">Grand Total:</th>
-                                                <th class="text-center">${{grand_total}}</th>
+                                                <th class="text-center">${{grand_total}}USD</th>
                                             </tr>
                                         </tfoot>
                                     </table>

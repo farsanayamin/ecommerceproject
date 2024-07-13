@@ -114,13 +114,14 @@ def payments(request):
     # Transactions details 
     payment = Payment(
         user = request.user,
-        amount_paid = order.order_total,
         transaction_id = body['transID'],
         payment_id = body['paymentID'],
-        payment_method = "Pay pal",
-        status=body['status']
+        payment_method = body['payment_method'],
+        amount_paid = order.order_total,
+        status = body['status'],
         
 
+     
       
       
     )
