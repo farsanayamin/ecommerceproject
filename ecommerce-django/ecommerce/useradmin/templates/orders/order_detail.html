@@ -2,7 +2,25 @@
 {% load static %}
 {% block content %}
     <div class="container-fluid">
-        <h3> <strong>Order Number:</strong> {{order.order_number}} <span class="float-right">Total Price: <strong>{{total_price | floatformat:2}} </strong></span> </h3>
+        <h3> <strong>Order Number:</strong> {{order.order_number}} <span class="float-right">Total Price: <strong>${{total_price | floatformat:2}} </strong></span> </h3>
+    
+     </div>
+                        <!-- col-lg-6 end here -->
+                        <div class="col-lg-6">
+    <!-- col-lg-6 start here -->
+    <div class="invoice-from">
+        <ul class="list-unstyled text-left">
+            <li><strong>Customer Address</strong></li>
+            <li>Full Name: {{ order.full_name }}</li>
+            <li>Address: {{ order.full_address }}</li>
+            <li>City, State: {{ order.city }}, {{ order.state }}</li>
+            <li>Country: {{ order.country }}</li>
+            <li>Payment Method: {{ order.payment }}</li>
+        </ul>
+    </div>
+</div>
+
+    
     <table class="table bg-white">
         <thead class="bg-info">
             <tr class="text-white">
@@ -27,12 +45,12 @@
                     {{product.quantity}}
                 </td>
                 <td>
-                    {{product.product_price | floatformat:2}}
+                    ${{product.product_price | floatformat:2}}
                 </td>
                 <td>
                     {{product.quantity}}
                 </td>
-                <td> {% widthratio product.quantity 1 product.product_price %} </td>
+                <td> ${% widthratio product.quantity 1 product.product_price %} </td>
           </tr>
             {% endfor %}
             <tr>
@@ -48,25 +66,31 @@
                     <b>Tax:</b>
                 </td>
                 <td>
-                    {{order.tax | floatformat:2}}
+                    ${{order.tax | floatformat:2}}
                 </td>
             </tr>
             <tr>
                 <td colspan="5" class="text-center">
+                <p>
+                        <b>Discount:</b>
+                    </p>
                     <p>
                         <b>Grand Total:</b>
                     </p>
                     <p>
-                        <b>Discount:</b>
+                        <b>Total Price:</b>
                     </p>
                         
                 </td>
                 <td>
+                <p>
+                        -${{order.coupon.discount_price}}
+                    </p>
                     <p> 
-                        {{order.order_total | floatformat:2}}
+                        ${{order.order_total | floatformat:2}}
                     </p>
                     <p>
-                        -{{order.coupon.discount_price}}
+                    <strong>${{total_price | floatformat:2}}
                     </p>
                 </td>
             </tr>

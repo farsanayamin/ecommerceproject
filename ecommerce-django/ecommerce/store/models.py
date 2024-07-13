@@ -168,6 +168,7 @@ class Variation(models.Model):
             self.quantity = 1
 
         self.discounted_price = self.calculate_discounted_price()
+        
         super(Variation, self).save(*args, **kwargs)
 
 
@@ -210,5 +211,4 @@ class ReviewRating(models.Model):
     def __str__(self) -> str:
         return self.subject
     
-
 

@@ -27,66 +27,76 @@ import requests
 
 from django.utils import timezone
 
+
 def download_sales_report(request):
-  response = HttpResponse(content_type='text/csv')
-  response['Content-Disposition'] = 'attachment; filename="sales_report.csv"'
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="sales_report.csv"'
 
-  writer = csv.writer(response)
+    writer = csv.writer(response)
 
-  # Write header row
-  writer.writerow(['Order Number', 'Order Total', 'Order Date', 'User', 'Product Name', 'Quantity', 'Price'])
+    # Write header row
+    writer.writerow(['Order Number', 'Order Total', 'Order Date', 'User', 'Product Name', 'Quantity', 'Price'])
 
-  # Get all orders within the date range
-  start_date_str = request.GET['start_date']
-  end_date_str = request.GET['end_date']
-  start_date = timezone.datetime.strptime(start_date_str, '%b. %d, %Y, midnight').date()
-  end_date = (timezone.datetime.strptime(end_date_str, '%b. %d, %Y, midnight').date() + timedelta(days=1))
-  orders = Order.objects.filter(created_at__range=(start_date, end_date))
+    # Get all orders within the date range
+    start_date_str = request.GET['start_date']
+    end_date_str = request.GET['end_date']
+    
+    try:
+        start_date = datetime.strptime(start_date_str, '%B %d, %Y, midnight').date()
+    except ValueError:
+        start_date = timezone.now().date() - timedelta(days=1)
+    
+    try:
+        end_date = (datetime.strptime(end_date_str, '%B %d, %Y, midnight').date() + timedelta(days=1))
+    except ValueError:
+        end_date = timezone.now().date() + timedelta(days=1)
+    
+    orders = Order.objects.filter(created_at__range=(start_date, end_date))
 
-  # Loop through orders
-  for order in orders:
-      # Get related OrderItems for the current order
-      order_items = OrderProduct.objects.filter(order=order)
+    # Loop through orders
+    for order in orders:
+        # Get related OrderItems for the current order
+        order_items = OrderProduct.objects.filter(order=order)
 
-      # Loop through OrderItems and write rows
-      for order_item in order_items:
-          writer.writerow([
-              order.order_number,
-              order.order_total,
-              order.created_at.strftime('%Y-%m-%d %H:%M:%S'), 
-              order.user,
-              order_item.product, 
-              order_item.quantity,
-              order_item.product_price,
-          ])
+        # Loop through OrderItems and write rows
+        for order_item in order_items:
+            writer.writerow([
+                order.order_number,
+                order.order_total,
+                order.created_at.strftime('%Y-%m-%d %H:%M:%S'), 
+                order.user.username,  # Assuming 'user' is a ForeignKey in Order model
+                order_item.product.product_name,  # Assuming 'product' is a ForeignKey in OrderProduct model
+                order_item.quantity,
+                order_item.product_price,
+            ])
 
-  return response
+    return response
 
-
+def admindashboard(request):
+    return render(request, 'admindashboard.html')
 
 def decorator(request):
     return render(request, 'decorator.html')
-
+#:::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 @login_required(login_url='login')
 def useradmin(request):
     if request.user.is_admin:
         yesterday = datetime.now() - timedelta(days=1) 
         today = datetime.now() + timedelta(days=1)
-        start_date = request.GET.get('start_date', yesterday.strftime('%Y-%m-%d'))
-        end_date = request.GET.get('end_date', today.strftime('%Y-%m-%d'))
-        try:
-            start_date = datetime.strptime(start_date, '%Y-%m-%d') # type: ignore
-        except:
-            start_date = datetime.strptime(yesterday.strftime('%Y-%m-%d'), '%Y-%m-%d')
+        start_date = request.GET.get('start_date', yesterday.strftime('%B %d, %Y, midnight'))
+        end_date = request.GET.get('end_date', today.strftime('%B %d, %Y, midnight'))
         
         try:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d') # type: ignore
-        except:
-            end_date = datetime.strptime(today.strftime('%Y-%m-%d'), '%Y-%m-%d')
+            start_date = datetime.strptime(start_date, '%B %d, %Y, midnight').date()
+        except ValueError:
+            start_date = yesterday.date()
         
-        end_date = end_date + timedelta(days=1)
-
+        try:
+            end_date = (datetime.strptime(end_date, '%B %d, %Y, midnight').date() + timedelta(days=1))
+        except ValueError:
+            end_date = today.date() + timedelta(days=1)
+        
         orders = Order.objects.filter(Q(created_at__gte=start_date) & Q(created_at__lte=end_date))
         
         sales = orders.annotate(date=TruncDate('created_at')).values('date').annotate(total_revenue=Sum('order_total'))
@@ -94,14 +104,15 @@ def useradmin(request):
         sales_json = json.dumps(sales_list, cls=DjangoJSONEncoder)
 
         context = {
-            'orders':orders,
-            'sales':sales_json,
+            'orders': orders,
+            'sales': sales_json,
             'start_date': start_date,
-            'end_date': end_date
+            'end_date': end_date,
         }
         return render(request, 'index.html', context)
     else:
         return redirect('decorator')
+
     
 #=====================================================CUSTOMERS=================================================================
 
@@ -538,9 +549,12 @@ def authenticate_paypal_client(request):
 
    # Define the authentication credentials
    auth = (
-       "AYMn6qkisYhz1vunMdI58XS_3oiCOai_HnqB-JBexsHfBfxltx7sGyfne3LZnCqs-TpcKnLKDKFiIUO1",
-       "EARgvVV_asoRfubPWeHgQDmsbWBFPARR4H-u9rMQ694kyMXkuqFv1R7sw8R5IlfaVpCxqguYGTEuyzNu",
+       
+       "AZ6r1mtec08dDVwbJ_Yc-M9drAV3T50vVfkoMZPI5iaQxn8lcbT06QIaqYnk2HExwEXAjmziGjl-wk9p",
+       "EPL9dU0uqxsQMGdaCrc3S_u3LrxdFFejnlOUIPvt6x-EjGFqC82DBdSjOP4RqU8fJf9eoskYTpARlkMh",
    )
+
+  
 
    # Send the request to the OAuth 2.0 token endpoint
    response = requests.post(url, headers=headers, data=data, auth=auth)
@@ -552,7 +566,8 @@ def authenticate_paypal_client(request):
    else:
        return None
 
-
+from django.shortcuts import get_object_or_404
+from orders.models import wallet 
 
 def refund_payment(request, order_id):
  # Authenticate the PayPal client
@@ -585,6 +600,9 @@ def refund_payment(request, order_id):
  print(response.json())
 
  if response.status_code == 201:
+    wallet1 = get_object_or_404(wallet, user=order.user)
+    wallet1.amount += order.order_total  # Assuming order_total is the refunded amount
+    wallet1.save()
     order.is_refunded = True
     order.save()
     return redirect('cancelled_orders')
@@ -884,3 +902,83 @@ def delete_coupon(request, coupon_id):
     coupon.delete()
 
     return redirect('coupons')
+
+
+from django.shortcuts import render, redirect
+from django.db.models import Q, Sum, Count
+from django.utils.timezone import datetime, timedelta
+from django.contrib.auth.decorators import login_required
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models.functions import TruncDate
+
+import json
+
+@login_required(login_url='login')
+def admindashboard(request):
+    if request.user.is_admin:
+        yesterday = datetime.now() - timedelta(days=1) 
+        today = datetime.now() + timedelta(days=1)
+        start_date = request.GET.get('start_date', yesterday.strftime('%Y-%m-%d'))
+        end_date = request.GET.get('end_date', today.strftime('%Y-%m-%d'))
+        
+        try:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        except:
+            start_date = datetime.strptime(yesterday.strftime('%Y-%m-%d'), '%Y-%m-%d')
+        
+        try:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d')
+        except:
+            end_date = datetime.strptime(today.strftime('%Y-%m-%d'), '%Y-%m-%d')
+        
+        end_date = end_date + timedelta(days=1)
+
+        # Get orders within date range
+        orders = Order.objects.filter(Q(created_at__gte=start_date) & Q(created_at__lte=end_date))
+        
+        # Calculate total sales and order count
+        total_sales = orders.aggregate(total_revenue=Sum('order_total'))['total_revenue'] or 0
+        total_orders = orders.count()
+
+        # Calculate average order value
+        avg_order_value = total_sales / total_orders if total_orders > 0 else 0
+
+        # Get sales by day
+        sales = orders.annotate(date=TruncDate('created_at')).values('date').annotate(total_revenue=Sum('order_total'))
+        sales_list = [{'date': sale['date'].strftime('%Y-%m-%d'), 'total_revenue': sale['total_revenue']} for sale in sales]
+        sales_json = json.dumps(sales_list, cls=DjangoJSONEncoder)
+
+        # New customers
+        new_customers = Account.objects.filter(date_joined__range=(start_date, end_date)).count()
+
+        # Top selling products
+        #top_products = OrderProduct.objects.filter(order__in=orders).values('product__name').annotate(total_quantity=Sum('quantity')).order_by('-total_quantity')[:5]
+        #top_products = OrderProduct.objects.filter(order__in=orders).values('product__name').annotate(total_quantity=Sum('quantity')).order_by('-total_quantity')[:5]
+
+        # Order status distribution
+        order_statuses = orders.values('status').annotate(count=Count('id')).order_by('status')
+        order_status_list = [{'status': status['status'], 'count': status['count']} for status in order_statuses]
+        order_status_json = json.dumps(order_status_list, cls=DjangoJSONEncoder)
+
+        # Refunded orders
+        refunded_orders = orders.filter(is_refunded=True)
+        total_refunds = refunded_orders.aggregate(total_refund=Sum('order_total'))['total_refund'] or 0
+        refund_count = refunded_orders.count()
+
+        context = {
+            'orders': orders,
+            'sales': sales_json,
+            'total_sales': total_sales,
+            'total_orders': total_orders,
+            'avg_order_value': avg_order_value,
+            'new_customers': new_customers,
+            #'top_products': top_products,
+            'order_status': order_status_json,
+            'total_refunds': total_refunds,
+            'refund_count': refund_count,
+            'start_date': start_date,
+            'end_date': end_date
+        }
+        return render(request, 'admindashboard.html', context)
+    else:
+        return redirect('decorator')

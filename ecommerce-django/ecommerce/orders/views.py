@@ -114,11 +114,15 @@ def payments(request):
     # Transactions details 
     payment = Payment(
         user = request.user,
+        amount_paid = order.order_total,
         transaction_id = body['transID'],
         payment_id = body['paymentID'],
-        payment_method = body['payment_method'],
-        amount_paid = order.order_total,
-        status = body['status']
+        payment_method = "Pay pal",
+        status=body['status']
+        
+
+      
+      
     )
     if order.coupon:
         payment.amount_paid -= order.coupon.discount_price  #type:ignore
@@ -404,3 +408,184 @@ def cash_on_delivery(request):
 
 def process_refund(request):
     pass
+
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from .models import wallet, Refund
+from .forms import RefundForm
+from django.contrib import messages
+
+@login_required
+def initiate_refund(request,order_id):
+    if request.method == 'POST':
+        form = RefundForm(request.POST)
+        if form.is_valid():
+            order_id = form.cleaned_data['order_id']
+            amount = form.cleaned_data['amount']
+            user = request.user
+            
+            # Update wallet balance
+            wallet, created = wallet.objects.get_or_create(user=user)
+            wallet.amount += amount
+            wallet.save()
+            
+            # Create a refund record
+            Refund.objects.create(user=user, order_id=order_id, amount=amount)
+            
+            messages.success(request, 'Refund processed successfully.')
+            return redirect('wallet_balance')
+    else:
+        form = RefundForm()
+
+    return render(request, 'wallet/initiate_refund.html', {'form': form,'order_id':order_id})
+"""
+@login_required
+def wallet_balance(request,order_id):
+    user_wallet, created = wallet.objects.get_or_create(user=request.user)
+    
+    context = {
+       
+        'wallet': user_wallet,
+        'order_id': order_id
+    }
+    return render(request, 'wallet/wallet_balance.html', context)
+"""
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from useradmin.views import authenticate_paypal_client
+
+import requests
+import requests
+from django.http import HttpRequest  # Import the appropriate request object
+
+# Assume `request` is your Django request object
+
+
+import requests
+from django.http import JsonResponse
+from useradmin.views import authenticate_paypal_client  # Import your authentication function
+
+import requests
+from django.http import JsonResponse
+#from .views import authenticate_paypal_client  # Import your authentication function
+import requests
+
+
+
+"""
+def authenticate_paypal_client():
+    # Define the URL for the OAuth 2.0 token endpoint
+    url = "https://api-m.sandbox.paypal.com/v1/oauth2/token"
+
+    # Define the headers for the request
+    headers = {
+        "Accept": "application/json",
+        "Accept-Language": "en_US",
+    }
+
+    # Define the body for the request
+    data = {
+        "grant_type": "client_credentials",
+        "scope": "openid profile https://uri.paypal.com/services/paypalattributes"
+    }
+
+    # Define the authentication credentials (replace with your actual sandbox client_id and client_secret)
+    client_id = "AZ6r1mtec08dDVwbJ_Yc-M9drAV3T50vVfkoMZPI5iaQxn8lcbT06QIaqYnk2HExwEXAjmziGjl-wk9p"
+    client_secret = "EPL9dU0uqxsQMGdaCrc3S_u3LrxdFFejnlOUIPvt6x-EjGFqC82DBdSjOP4RqU8fJf9eoskYTpARlkMh"
+    auth = (client_id, client_secret)
+
+    # Send the request to the OAuth 2.0 token endpoint
+    response = requests.post(url, headers=headers, data=data, auth=auth)
+
+    # If the request was successful, the response will contain an access token
+    if response.status_code == 200:
+        access_token = response.json()["access_token"]
+        print(f"Successfully authenticated with PayPal. Access token: {access_token}")
+        return access_token
+    else:
+        print(f"Failed to authenticate with PayPal: {response.status_code} - {response.text}")
+        return None
+
+# Example usage
+access_token = authenticate_paypal_client()
+if access_token:
+    print(f"Authenticated successfully with access token: {access_token}")
+else:
+    print("Failed to authenticate with PayPal.")
+
+
+
+
+def fetch_paypal_account_balance(request):
+    # Authenticate PayPal client to get access token
+    access_token = authenticate_paypal_client()
+    
+    if access_token is None:
+        return JsonResponse({"error": "Failed to authenticate PayPal client"}, status=401)
+    
+    # Define the URL for fetching PayPal account balance (adjust endpoint as per PayPal API documentation)
+    balance_url = 'https://api-m.sandbox.paypal.com/v1/reporting/balances'
+   
+    
+    # Define headers with authorization
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {access_token}",
+    }
+    
+    try:
+        # Make a GET request to fetch balance information
+        response = requests.get(balance_url, headers=headers)
+        print(response)
+
+        # Check if the request was successful (status code 200)
+        if response.status_code == 200:
+            # Parse the JSON response
+            balance_data = response.json()
+            print(balance_data)
+            
+            # Example: Print the total balance if available
+            total_balance = balance_data['balances'][0]['total_balance']['value']
+            print(f'PayPal Total Balance: {total_balance}')
+            
+            return JsonResponse(balance_data)  # Return balance data as JSON response
+
+        else:
+            print(f'Failed to fetch PayPal balance: {response.status_code} - {response.text}')
+            return JsonResponse({"error": f"Failed to fetch PayPal balance: {response.status_code}"}, status=response.status_code)
+
+    except requests.exceptions.RequestException as e:
+        print(f'Error fetching PayPal balance: {e}')
+        return JsonResponse({"error": f"Error fetching PayPal balance: {e}"}, status=500)
+
+
+
+"""
+
+
+
+@login_required
+def wallet_balance(request):
+    # Fetch or create the user's wallet
+    user_wallet, created = wallet.objects.get_or_create(user=request.user)
+    
+    # Authenticate PayPal client to fetch account balance
+    #access_token = authenticate_paypal_client()
+    #if access_token is None:
+        #return JsonResponse({"error": "Failed to authenticate PayPal client"}, status=401)
+    
+    # Fetch PayPal account balance
+    #account_balance = fetch_paypal_account_balance(access_token)
+    #if account_balance is None:
+       # return JsonResponse({"error": "Failed to fetch PayPal account balance"}, status=500)
+    
+    # Update wallet balance based on PayPal account balance
+    #user_wallet.balance = account_balance
+    user_wallet.save()
+    
+    context = {
+        'wallet': user_wallet,
+        
+    }
+    return render(request, 'wallet/wallet_balance.html', context)

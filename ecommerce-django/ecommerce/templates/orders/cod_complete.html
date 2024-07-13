@@ -39,6 +39,7 @@
                                         <li><strong>Transaction</strong> {{transID}} </li>
                                         <li><strong>Order Date:</strong> {{order.created_at}}</li>
                                         <li><strong>Status:</strong> {{payment.status}} </li>
+                                        <li><strong>Payment Method:</strong> {{payment.payment_method}} </li>
                                     </ul>
                                 </div>
                             </div>
@@ -67,31 +68,35 @@
                                                     
                                                 </td>
                                                 <td class="text-center"> {{item.quantity}} </td>
-                                                <td class="text-center">${{item.discounted_price | floatformat:2}} USD</td>
+                                               <td class="text-center"> price:${{ item.product_price | floatformat:2 }}<br>
+                                               
+                                               
+                                        
+
                                             </tr>
                                             {% endfor %}
                                             
                                         </tbody>
                                         <tfoot>
                                             <tr>
-                                                <th colspan="2" class="text-right">Sub Total:</th>
-                                                <th class="text-center">${{subtotal}} USD</th>
+                                                <th colspan="2" class="text-right">Sub Total(offer applied if any):</th>
+                                                <th class="text-center">${{subtotal}} </th>
                                             </tr>
                                             <tr>
                                                 <th colspan="2" class="text-right">Tax:</th>
-                                                <th class="text-center">${{order.tax}} USD</th>
+                                                <th class="text-center">${{order.tax}} </th>
                                             </tr>
 
                                             {% if order.coupon %}
                                             <tr>
-                                                <th colspan="2" class="text-right">Discounts:</th>
-                                                <th class="text-center">-${{order.coupon.discount_price}} USD</th>
+                                                <th colspan="2" class="text-right">Coupen Discounts:</th>
+                                                <th class="text-center">-${{order.coupon.discount_price}}</th>
                                             </tr>
                                             {% endif %}
                                             
                                             <tr>
                                                 <th colspan="2" class="text-right">Grand Total:</th>
-                                                <th class="text-center">${{grand_total}} USD</th>
+                                                <th class="text-center">${{grand_total}}</th>
                                             </tr>
                                         </tfoot>
                                     </table>

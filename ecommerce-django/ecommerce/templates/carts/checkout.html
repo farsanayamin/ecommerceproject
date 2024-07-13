@@ -182,20 +182,28 @@
 
 <div class="card">
     <div class="card-body">
-
         {% include "home/alerts.html" %}
         {% if not coupon_used %}
-        <div class="form-row ">
+        <div class="form-row">
             <div class="text-center col-lg-12">
                 <form action="{% url 'checkout' %}" method="get">
                     <label for="" class="form-text">Coupon Code</label>
-                    {{coupon_form.code}}
+                    {{ coupon_form.code }}
                     <button class="btn btn-success btn-block mt-3" type="submit">Redeem</button>
                 </form>
             </div>
         </div>
-            {% endif %}
-      
+        {% else %}
+        <div class="form-row">
+            <div class="text-center col-lg-12">
+                <form action="{% url 'remove_coupon' %}" method="post">
+                    {% csrf_token %}
+                    <label for="" class="form-text">Coupon Applied</label>
+                    <button class="btn btn-danger btn-block mt-3" type="submit">Remove Coupon</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 

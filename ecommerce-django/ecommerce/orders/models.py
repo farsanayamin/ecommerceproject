@@ -84,3 +84,22 @@ class OrderProduct(models.Model):
 
     def __str__(self) -> str:
         return self.product.product_name
+    
+
+
+class wallet(models.Model):
+    user = models.ForeignKey(Account, on_delete=models.CASCADE)
+    amount = models.BigIntegerField(default=0)
+    def __str__(self):
+        return f"{self.user}'s Wallet - Balance: {self.amount}"
+
+
+class Refund(models.Model):
+    user = models.ForeignKey(Account, on_delete=models.CASCADE)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    amount = models.BigIntegerField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    variation = models.ForeignKey(Variation, on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return f"Refund for {self.user} - Order: {self.order_id} - Amount: {self.amount}"

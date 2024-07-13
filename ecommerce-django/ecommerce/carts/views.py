@@ -327,6 +327,14 @@ def checkout(request, total=0, quantity = 0 , cart_items = None):
 
 
 
+def remove_coupon(request):
+    if request.method == 'POST':
+        # Logic to remove the coupon
+        request.session.pop('coupon_code', None) 
+        
+        return redirect('checkout')
+
+
 
 def update_cart(request):
     cart_item_id = request.POST.get('cart_item_id')

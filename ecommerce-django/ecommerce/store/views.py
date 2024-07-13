@@ -57,21 +57,21 @@ def store(request, category_slug = None, brand_slug = None):
 
 
 # ============================================================= PRODUCT DETAIL ======================================================================================
-
-
 def product_detail(request, brand_slug, product_slug):
     try:
         
         single_product = Product.objects.get(brand__slug = brand_slug, slug = product_slug)
         in_cart = CartItem.objects.filter(cart__cart_id = _cart_id(request), product = single_product).exists()
          # Check if the product is in the wishlist
-        in_wishlist = Wishlist.objects.filter(product=single_product, user=request.user).exists()
+        in_wishlist = False
+        
     
     except Exception as e:
         raise e
     
     if request.user.is_authenticated:
         try:
+            in_wishlist = Wishlist.objects.filter(product=single_product, user=request.user).exists()
             orderproduct = OrderProduct.objects.filter(user = request.user, product= single_product, order__status = 'Delivered').exists()
         except OrderProduct.DoesNotExist:
             orderproduct = False
@@ -83,7 +83,7 @@ def product_detail(request, brand_slug, product_slug):
     reviews = ReviewRating.objects.filter(product = single_product, status = True)
     product_gallery = Images.objects.filter(product = single_product) 
     colors = Variation.objects.filter(product = single_product).values('color__id', 'color__name', 'color__code','image_id').distinct()
-    size = Variation.objects.filter(product = single_product).values('size__id', 'size__name', 'discounted_price', 'color__id')
+    size = Variation.objects.filter(product = single_product).values('size__id', 'size__name','price', 'discounted_price', 'color__id')
    
     context = {
         'single_product':single_product,
@@ -98,6 +98,38 @@ def product_detail(request, brand_slug, product_slug):
         
     }
     return render(request, 'store/product_detail.html', context)
+
+
+
+def submit_review(request, product_id):
+    if request.method == 'POST':
+        if request.user.is_authenticated:
+            # Fetch the product for which review is being submitted
+            product = get_object_or_404(Product, id=product_id)
+            
+            # Extract review data from POST request
+            rating = float(request.POST.get('rating'))
+            subject = request.POST.get('subject')
+            review_text = request.POST.get('review')
+            
+            # Create new review object
+            new_review = ReviewRating(
+                product=product,
+                user=request.user,
+                rating=rating,
+                subject=subject,
+                review=review_text
+            )
+            new_review.save()
+            
+            # Redirect to product detail page after review submission
+            return JsonResponse({'success': True, 'message': 'Review submitted successfully!'})
+        else:
+            # Redirect to login page if user is not authenticated
+            return JsonResponse({'success': False, 'message': 'You must be logged in to submit a review.'})
+    else:
+        # Redirect to product detail page if request method is not POST
+        return JsonResponse({'success': False, 'message': 'Invalid request method.'})
 
 
 #========================================== SEARCH =================================================================================================================

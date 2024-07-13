@@ -30,11 +30,15 @@ def add_to_wishlist(request, product_id):
     product = Product.objects.get(id = product_id)
     
     cw = Wishlist.objects.filter(product=product, user = request.user).count()
-
-    if not cw:
+    
+    if not cw :
+        
+       
+        size_id = request.POST.get('size_id')
         wishlist = Wishlist.objects.create(
             product = product,
-            user = request.user
+            user = request.user,
+           
         )
         data = {
             'bool': True

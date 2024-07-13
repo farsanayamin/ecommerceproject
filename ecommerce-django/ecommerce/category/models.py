@@ -8,7 +8,7 @@ class Category(models.Model):
     category_name = models.CharField(max_length=50, unique=True)
     slug = models.SlugField(max_length=100, unique=True, blank=True)
     cat_image = models.ImageField(upload_to="photos/categories", blank=True,)
-    offer = models.ForeignKey(CategoryOffer, on_delete=models.CASCADE, null=True, blank=True)
+    offer = models.ForeignKey(CategoryOffer, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         verbose_name = "Category"

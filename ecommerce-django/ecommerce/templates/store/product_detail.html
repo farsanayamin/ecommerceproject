@@ -48,42 +48,59 @@
                 </div> {% endcomment %}
                 
                 <p>{{ single_product.description }}</p>
-                <hr />
+<hr />
                
-                <table class="table table-bordered">
-                  <tr>
-                    <th>
-                      Colors
-                    </th>
-                    <td>
-                      {% for color in colors %}
-                      <button class="btn btn-lg choose-color" data-image="{{color.image_id}}" data-color="{{color.color__id}}" style="background-color: {{color.color__code}}; border: 1px solid gray"></button>
-                      {% endfor %}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>
-                      Sizes
-                    </th>
-                    <td> 
-                      {% for size in sizes %}
-                      <button data-size="{{size.size__id}}" data-color="{{size.color__id}}" data-price="{{size.discounted_price}}" class="btn btn-outline-secondary btn-sm choose-size color-{{size.color__id}}"> {{size.size__name}} </button>
-                      {% endfor %}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>
-                      Price
-                    </th>
-                    <th>
-                      $
-                      <span class="product-price">
-                        
-                      </span>
-                    </th>
-                  </tr>
-                </table>
-                  
+<table class="table table-bordered">
+  <tr>
+    <th>
+      Colors
+    </th>
+    <td>
+      {% for color in colors %}
+        <button class="btn btn-lg choose-color" data-image="{{color.image_id}}" data-color="{{color.color__id}}" style="background-color: {{color.color__code}}; border: 1px solid gray"></button>
+      {% endfor %}
+    </td>
+  </tr>
+  <tr>
+    <th>
+      Sizes
+    </th>
+    <td> 
+      {% for size in sizes %}
+        <button data-size="{{size.size__id}}" data-color="{{size.color__id}}" data-price="{{size.discounted_price}}" class="btn btn-outline-secondary btn-sm choose-size color-{{size.color__id}}">
+          {{size.size__name}}
+        </button>
+      {% endfor %}
+    </td>
+  </tr>
+  <tr>
+    <th>
+      Price
+    </th>
+    <th>
+      $<span class="product-price"></span>
+    </th>
+  </tr>
+  <tr>
+  <th>
+    Original Price
+  </th>
+  <td>
+    {% for size in sizes %}
+      {% if size.discounted_price != size.price %}
+        <span class="text-danger"><del>${{ size.price | floatformat:2 }}</del></span>
+        
+      {% else %}
+        ${{ size.price | floatformat:2 }}
+      {% endif %}
+      <br>
+    {% endfor %}
+    
+  </td>
+</tr>
+
+</table>
+
                 <hr />
                     <div class="text-center">
                       <input type="hidden" class="product-id" value="{{single_product.id}}">
@@ -94,25 +111,30 @@
 
 
             
-            {% if in_wishlist %}
-                <!-- Remove from wishlist form -->
-                <form action="{% url 'remove_from_wishlist' single_product.id %}" method="post" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">
-                        <span class="text">Remove from wishlist</span> 
-                        <i class="fas fa-heart text-white"></i> <!-- Wishlist icon -->
-                    </button>
-                </form>
-            {% else %}
-                <!-- Add to wishlist form -->
-                <form action="{% url 'add_to_wishlist' single_product.id %}" method="post" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-primary">
-                        <span class="text">Add to wishlist</span>
-                        <i class="fas fa-heart text-white"></i> <!-- Cart icon -->
-                    </button>
-                </form>
-            {% endif %}
+           {% if user.is_authenticated %}
+    {% if in_wishlist %}
+        <!-- Remove from wishlist form -->
+        <form action="{% url 'remove_from_wishlist' single_product.id %}" method="post" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+                <span class="text">Remove from wishlist</span> 
+                <i class="fas fa-heart text-white"></i> <!-- Wishlist icon -->
+            </button>
+        </form>
+    {% else %}
+        <!-- Add to wishlist form -->
+        <form action="{% url 'add_to_wishlist' single_product.id %}" method="post" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                <span class="text">Add to wishlist</span>
+                <i class="fas fa-heart text-white"></i> <!-- Wishlist icon -->
+            </button>
+        </form>
+    {% endif %}
+{% else %}
+    <!-- Display message or handle differently when user is not logged in -->
+    <p>You must be logged in to add products to your wishlist <span><a href="{% url "login" %}">Login Now</a></span></p>
+{% endif %}
        
 
                     </div>

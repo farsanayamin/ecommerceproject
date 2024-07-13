@@ -1,8 +1,11 @@
 from django.urls import path
 from . import views
 urlpatterns = [
-    path('', views.useradmin, name='useradmin'),
+    path('useradmin', views.useradmin, name='useradmin'),
     path('unauthorized/', views.decorator, name='decorator'),
+
+#===================Dashboard========================================
+    path('',views.admindashboard,name='admindashboard'),
 
 #===========================Users==================================
 # Customers----------------------------------------------------------------------------------------------------

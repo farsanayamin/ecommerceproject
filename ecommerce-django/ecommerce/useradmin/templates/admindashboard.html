@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load static %}
+
+    {% block content %}
+
+ <!-- Content Section -->
+    <div class="container mt-5">
+        <h1>Admin Dashboard</h1>
+        <form method="get" class="form-inline mb-4">
+            <div class="form-group">
+                <label for="start_date" class="mr-2">Start Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control mr-2" value="{{ start_date|date:'Y-m-d' }}">
+            </div>
+            <div class="form-group">
+                <label for="end_date" class="mr-2">End Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control mr-2" value="{{ end_date|date:'Y-m-d' }}">
+            </div>
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </form>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Sales</h5>
+                        <p class="card-text">${{ total_sales }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Orders</h5>
+                        <p class="card-text">{{ total_orders }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Average Order Value</h5>
+                        <p class="card-text">${{ avg_order_value }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">New Customers</h5>
+                        <p class="card-text">{{ new_customers }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Refunds</h5>
+                        <p class="card-text">${{ total_refunds }}</p>
+                        <p class="card-text">Refund Count: {{ refund_count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Sales by Day</h5>
+                        <canvas id="salesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Order Status Distribution</h5>
+                        <canvas id="orderStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Top Selling Products</h5>
+                        <ul class="list-group">
+                            {% for product in top_products %}
+                                <li class="list-group-item">
+                                    {{ product.product__name }} - {{ product.total_quantity }} sold
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Sales by Day Chart
+            var salesData = JSON.parse('{{ sales|safe }}');
+            var salesChartCtx = document.getElementById('salesChart').getContext('2d');
+            var salesChart = new Chart(salesChartCtx, {
+                type: 'line',
+                data: {
+                    labels: salesData.map(item => item.date),
+                    datasets: [{
+                        label: 'Sales ($)',
+                        data: salesData.map(item => item.total_revenue),
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Order Status Distribution Chart
+            var orderStatusData = JSON.parse('{{ order_status|safe }}');
+            var orderStatusChartCtx = document.getElementById('orderStatusChart').getContext('2d');
+            var orderStatusChart = new Chart(orderStatusChartCtx, {
+                type: 'pie',
+                data: {
+                    labels: orderStatusData.map(item => item.status),
+                    datasets: [{
+                        label: 'Order Status',
+                        data: orderStatusData.map(item => item.count),
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.2)',
+                            'rgba(54, 162, 235, 0.2)',
+                            'rgba(255, 206, 86, 0.2)',
+                            'rgba(75, 192, 192, 0.2)',
+                            'rgba(153, 102, 255, 0.2)',
+                            'rgba(255, 159, 64, 0.2)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                }
+            });
+        });
+    </script>
+
+    
+    {% endblock content %}
