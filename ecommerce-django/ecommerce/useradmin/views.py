@@ -31,47 +31,111 @@ from django.db.models import Sum
 from django.utils import timezone
 
 
+from django.http import HttpResponse
+import csv
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.db.models import Q
+# Adjust the import to match your app structure
+
+from django.http import HttpResponse
+import csv
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.db.models import Q
+
+
+import csv
+from datetime import datetime, timedelta
+from django.http import HttpResponse
+from django.utils import timezone
+from django.db.models import Q
+
+
+import csv
+from datetime import datetime, timedelta
+from django.http import HttpResponse
+from django.utils import timezone
+from django.db.models import Q
+
+
+from django.utils import timezone
+import csv
+from datetime import datetime, timedelta
+from django.http import HttpResponse
+
+
+from django.utils import timezone
+from datetime import datetime, timedelta
+from django.http import HttpResponse
+import csv
+
+
 def download_sales_report(request):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="sales_report.csv"'
 
     writer = csv.writer(response)
-
-    # Write header row
     writer.writerow(['Order Number', 'Order Total', 'Order Date', 'User', 'Product Name', 'Quantity', 'Price'])
 
-    # Get all orders within the date range
-    start_date_str = request.GET['start_date']
-    end_date_str = request.GET['end_date']
-    
-    try:
-        start_date = datetime.strptime(start_date_str, '%B %d, %Y, midnight').date()
-    except ValueError:
-        start_date = timezone.now().date() - timedelta(days=1)
-    
-    try:
-        end_date = (datetime.strptime(end_date_str, '%B %d, %Y, midnight').date() + timedelta(days=1))
-    except ValueError:
-        end_date = timezone.now().date() + timedelta(days=1)
-    
-    orders = Order.objects.filter(created_at__range=(start_date, end_date))
+    period = request.GET.get('period', 'daily')
+    start_date_str = request.GET.get('start_date', '')
+    end_date_str = request.GET.get('end_date', '')
 
-    # Loop through orders
+    today = timezone.localtime().date()
+    start_date, end_date = None, None
+
+    print(f"Request Parameters: period={period}, start_date_str={start_date_str}, end_date_str={end_date_str}")
+
+    try:
+        if period == 'custom' and start_date_str and end_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() + timedelta(days=1)
+        else:
+            if period == 'weekly':
+                start_date = today - timedelta(days=today.weekday())
+                end_date = start_date + timedelta(days=7)
+            elif period == 'monthly':
+                start_date = today.replace(day=1)
+                next_month = start_date.replace(day=28) + timedelta(days=4)
+                end_date = next_month - timedelta(days=next_month.day - 1)
+            elif period == 'yearly':
+                start_date = today.replace(month=1, day=1)
+                end_date = start_date.replace(year=start_date.year + 1)
+            else:  # daily
+                start_date = today
+                end_date = start_date + timedelta(days=1)
+
+        # Make sure datetime objects are timezone-aware
+        start_date = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+        end_date = timezone.make_aware(datetime.combine(end_date, datetime.min.time()))
+
+        print(f"Parsed Date Range: Start Date: {start_date}, End Date: {end_date}")
+    except ValueError as e:
+        print(f"Error parsing dates: {e}")
+        today = timezone.localtime().date()
+        start_date = timezone.make_aware(datetime.combine(today, datetime.min.time()))
+        end_date = start_date + timedelta(days=1)
+        print(f"Using Fallback Date Range: Start Date: {start_date}, End Date: {end_date}")
+
+    orders = Order.objects.filter(created_at__range=(start_date, end_date)).select_related('user')
+
+    print(f"Number of Orders: {orders.count()}")
+
     for order in orders:
-        # Get related OrderItems for the current order
-        order_items = OrderProduct.objects.filter(order=order)
-
-        # Loop through OrderItems and write rows
+        order_items = OrderProduct.objects.filter(order=order).select_related('product')
         for order_item in order_items:
             writer.writerow([
                 order.order_number,
                 order.order_total,
-                order.created_at.strftime('%Y-%m-%d %H:%M:%S'), 
-                order.user.username,  # Assuming 'user' is a ForeignKey in Order model
-                order_item.product.product_name,  # Assuming 'product' is a ForeignKey in OrderProduct model
+                order.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                order.user.username,
+                order_item.product.product_name,
                 order_item.quantity,
                 order_item.product_price,
             ])
+
+            print(f"Order: {order.order_number}, Order Item: {order_item.product.product_name}")
 
     return response
 
@@ -82,6 +146,14 @@ def decorator(request):
     return render(request, 'decorator.html')
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+from django.utils import timezone
+from datetime import datetime, timedelta
+from django.db.models import Sum, Q
+from django.db.models.functions import TruncDay, TruncWeek, TruncMonth, TruncYear
+import json
+from django.core.serializers.json import DjangoJSONEncoder
+
+
 @login_required(login_url='login')
 def useradmin(request):
     if not request.user.is_admin:
@@ -91,7 +163,7 @@ def useradmin(request):
     start_date_str = request.GET.get('start_date', '')
     end_date_str = request.GET.get('end_date', '')
 
-    today = datetime.now().date()
+    today = timezone.localtime().date()
     start_date, end_date = None, None
 
     if period == 'custom' and start_date_str and end_date_str:
@@ -114,6 +186,10 @@ def useradmin(request):
         else:  # daily
             start_date = today
             end_date = start_date + timedelta(days=1)
+
+    # Make sure datetime objects are timezone-aware
+    start_date = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+    end_date = timezone.make_aware(datetime.combine(end_date, datetime.min.time()))
 
     orders = Order.objects.filter(Q(created_at__gte=start_date) & Q(created_at__lte=end_date))
 
@@ -140,6 +216,7 @@ def useradmin(request):
     }
 
     return render(request, 'index.html', context)
+
 #=====================================================CUSTOMERS=================================================================
 
 def customers(request):

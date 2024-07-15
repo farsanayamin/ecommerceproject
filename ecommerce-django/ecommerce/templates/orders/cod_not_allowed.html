@@ -1,0 +1,19 @@
+{% extends "home/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container" style="margin: 0 auto; width: 50%; padding: 50px; background: #f1f1f1; margin-top: 50px; margin-bottom: 50px;">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-body text-center">
+                    <h2>Cash On Delivery (COD) Not Allowed</h2>
+                    <p>We apologize, but Cash On Delivery (COD) is not available for orders above Rs 1000.</p>
+                    <p>Please choose an alternative payment method.</p>
+                    <a href="{% url 'checkout' %}" class="btn btn-primary">Back</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

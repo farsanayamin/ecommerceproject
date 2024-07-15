@@ -333,6 +333,8 @@ def cash_on_delivery(request):
     order_number = request.POST['order_number']
     print(order_number)
     order = Order.objects.get(user = request.user, is_ordered = False, order_number = order_number )
+    if order.order_total > 1000:
+        return render(request, 'orders/cod_not_allowed.html') 
     payment = Payment(
         user = request.user,
         payment_method = "Cash On Delivery",
