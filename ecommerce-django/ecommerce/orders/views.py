@@ -110,76 +110,82 @@ def cod_invoice(request, order_id):
 
 def payments(request):
     body = json.loads(request.body)
-    order = Order.objects.get(user=request.user, is_ordered = False, order_number = body['orderID'])
+    order = Order.objects.get(user=request.user, is_ordered=False, order_number=body['orderID'])
+    
     # Transactions details 
     payment = Payment(
-        user = request.user,
-        transaction_id = body['transID'],
-        payment_id = body['paymentID'],
-        payment_method = body['payment_method'],
-        amount_paid = order.order_total,
-        status = body['status'],
-        
-
-     
-      
-      
+        user=request.user,
+        transaction_id=body['transID'],
+        payment_id=body['paymentID'],
+        payment_method=body['payment_method'],
+        amount_paid=order.order_total,
+        status=body['status'],
     )
+    
     if order.coupon:
-        payment.amount_paid -= order.coupon.discount_price  #type:ignore
+        payment.amount_paid -= order.coupon.discount_price  # type: ignore
     payment.save()
-
+    
+    if body['status'] != 'Success':
+        # Handle failed payment
+        order.payment = payment
+        order.status = 'Pending'
+        order.save()
+        data = {
+            'order_number': order.order_number,
+            'status': 'Payment Pending',
+        }
+        return JsonResponse(data)
+    
+    # If payment is successful
     order.payment = payment
     order.is_ordered = True
     order.save()
-
+    
     # Move Cart Items to Order Product 
-    cart_items = CartItem.objects.filter(user = request.user)
-
+    cart_items = CartItem.objects.filter(user=request.user)
+    
     for item in cart_items:
         orderproduct = OrderProduct()
         orderproduct.order = order
         orderproduct.payment = payment
-        orderproduct.user= request.user
+        orderproduct.user = request.user
         orderproduct.product = item.product
         orderproduct.quantity = item.quantity
-        orderproduct.product_price = item.variation.discounted_price    #type:ignore
+        orderproduct.product_price = item.variation.discounted_price  # type: ignore
         orderproduct.ordered = True
         orderproduct.save()
-
-        cart_item = CartItem.objects.get(id = item.pk)
-
-        orderproduct = OrderProduct.objects.get(id = orderproduct.pk)
+        
+        cart_item = CartItem.objects.get(id=item.pk)
+        
+        orderproduct = OrderProduct.objects.get(id=orderproduct.pk)
         orderproduct.variation = cart_item.variation
         orderproduct.save()
         
-    # Reduce the Stock
-        variation = Variation.objects.get(product = item.product, id = item.variation.pk) #type:ignore
+        # Reduce the Stock
+        variation = Variation.objects.get(product=item.product, id=item.variation.pk)  # type: ignore
         variation.quantity -= item.quantity
         variation.save()
-    #  Clear Cart
-    CartItem.objects.filter(user = request.user).delete()
-
-    # Send order recieved mail to customer
+    
+    # Clear Cart
+    CartItem.objects.filter(user=request.user).delete()
+    
+    # Send order received mail to customer
     mail_subject = 'Order Placed'
-    message = render_to_string('orders/order_received_email.html',{
-        'user':request.user,
+    message = render_to_string('orders/order_received_email.html', {
+        'user': request.user,
         'order': order,
-    })            
+    })
     to_email = request.user.email
-    send_mail = EmailMessage(mail_subject, message, to = [to_email])
+    send_mail = EmailMessage(mail_subject, message, to=[to_email])
     send_mail.send()
     
-
     # Send order number and transaction id back to send Data
-
     data = {
-        'order_number' : order.order_number,
-        'transID' : payment.transaction_id,
-
+        'order_number': order.order_number,
+        'transID': payment.transaction_id,
     }
     return JsonResponse(data)
-
 
 
 
@@ -566,6 +572,132 @@ def fetch_paypal_account_balance(request):
 
 """
 
+import json
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
+from .models import Order, Payment
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import Order, Payment, OrderProduct  # Adjust import as per your project structure
+
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import Order, Payment, OrderProduct  # Adjust import as per your project structure
+
+import json
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .models import Order, Payment
+
+import json
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
+
+
+
+
+@csrf_exempt
+def pay_using_wallet(request):
+    if request.method == 'POST':
+        order_number = request.POST.get('order_number')
+        payment_method = request.POST.get('payment_method')
+
+        # Ensure order_number and payment_method are provided
+        if not order_number or not payment_method:
+            return JsonResponse({'error': 'Order number and payment method are required'}, status=400)
+
+        try:
+            order = get_object_or_404(Order, order_number=order_number)
+            user_wallet = get_object_or_404(wallet, user=request.user)
+
+            # Check if the wallet balance is sufficient
+            if user_wallet.amount < order.order_total:
+                return JsonResponse({'error': 'Insufficient wallet balance'}, status=400)
+
+            # Deduct the amount from the wallet
+            user_wallet.amount -= order.order_total
+            user_wallet.save()
+
+            # Create payment
+            payment = Payment.objects.create(
+                user=request.user,
+                amount_paid=order.order_total,
+                payment_method=payment_method,
+                status='Completed'
+            )
+            order.payment = payment
+            order.is_ordered = True
+            order.save()
+
+            # Move cart items to OrderProduct
+            cart_items = CartItem.objects.filter(user=request.user)
+            for item in cart_items:
+                orderproduct = OrderProduct()
+                orderproduct.order = order
+                orderproduct.payment = payment
+                orderproduct.user = request.user
+                orderproduct.product = item.product
+                orderproduct.quantity = item.quantity
+                orderproduct.product_price = item.variation.price  # type: ignore
+                orderproduct.ordered = True
+                orderproduct.save()
+
+                cart_item = CartItem.objects.get(id=item.pk)
+                product_variation = cart_item.variation
+                orderproduct.variation = product_variation
+                orderproduct.save()
+
+                variation = item.variation
+                variation.quantity -= item.quantity  # type: ignore
+                variation.save()  # type: ignore
+
+            # Clear cart
+            CartItem.objects.filter(user=request.user).delete()
+
+            # Send order confirmation email
+            mail_subject = 'Order Placed'
+            message = render_to_string('orders/order_received_email.html', {
+                'user': request.user,
+                'order': order,
+            })
+            to_email = request.user.email
+            send_mail = EmailMessage(mail_subject, message, to=[to_email])
+            send_mail.send()
+
+            # Prepare context for order complete page
+            ordered_products = OrderProduct.objects.filter(order_id=order.id)  # type: ignore
+            subtotal = sum(i.variation.discounted_price * i.quantity for i in ordered_products)  # type: ignore
+            grand_total = order.order_total
+            if order.coupon:
+                grand_total -= order.coupon.discount_price
+
+            context = {
+                'order': order,
+                'ordered_products': ordered_products,
+                'order_number': order.order_number,
+                'transID': payment.transaction_id,
+                'payment': payment,
+                'subtotal': subtotal,
+                'grand_total': grand_total,
+            }
+
+            return render(request, 'orders/order_complete.html', context)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+
+
 
 
 @login_required
@@ -592,3 +724,5 @@ def wallet_balance(request):
         
     }
     return render(request, 'wallet/wallet_balance.html', context)
+
+

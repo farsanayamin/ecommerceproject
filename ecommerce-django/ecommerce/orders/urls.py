@@ -11,6 +11,7 @@ urlpatterns = [
     path('cash_on_delivery', views.cash_on_delivery, name='cash_on_delivery'),
     path('cod_invoice/<int:order_id>', views.cod_invoice, name='cod_invoice'), 
    
+    path('pay_using_wallet', views.pay_using_wallet, name='pay_using_wallet'),
 
 
     path('refund/<int:order_id>/', initiate_refund, name='initiate_refund'),

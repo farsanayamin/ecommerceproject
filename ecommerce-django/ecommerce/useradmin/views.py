@@ -699,8 +699,16 @@ def refund_payment(request, order_id):
  print(response.json())
 
  if response.status_code == 201:
+    refund_response = response.json()
     order.is_refunded = True
     order.save()
+
+    user_wallet, created = wallet.objects.get_or_create(user=order.user)
+    user_wallet.amount += float(refund_response['amount']['value'])
+    user_wallet.save()
+
+
+
     return redirect('cancelled_orders')
  else:
     return JsonResponse({"error": "Failed to refund capture"}, status=response.status_code)
