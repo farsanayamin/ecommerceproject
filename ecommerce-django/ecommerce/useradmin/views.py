@@ -139,9 +139,67 @@ def download_sales_report(request):
 
     return response
 
-def admindashboard(request):
-    return render(request, 'admindashboard.html')
+#def admindashboard(request):
+    #return render(request, 'admindashboard.html')
+from django.shortcuts import render
+from django.db.models import Avg, Count, Sum
+import json
 
+from django.db.models import Sum
+
+def admindashboard(request):
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+
+    # Retrieve total sales for the given date range
+    total_sales = Order.objects.filter(created_at__range=(start_date, end_date)).aggregate(total_sales=Sum('order_total'))['total_sales'] or 0
+
+    # Retrieve total orders for the given date range
+    total_orders = Order.objects.filter(created_at__range=(start_date, end_date)).count()
+
+    # Retrieve average order value for the given date range
+    avg_order_value = Order.objects.filter(created_at__range=(start_date, end_date)).aggregate(avg_order_value=Avg('order_total'))['avg_order_value'] or 0
+
+    # Retrieve new customers count for the given date range (Example)
+    new_customers = Order.objects.filter(created_at__range=(start_date, end_date), user__date_joined__range=(start_date, end_date)).count()
+
+    # Retrieve total refunds amount and count for the given date range (Example)
+    total_refunds = Order.objects.filter(created_at__range=(start_date, end_date), status='Cancelled').aggregate(total_refunds=Sum('order_total'))['total_refunds'] or 0
+    refund_count = Order.objects.filter(created_at__range=(start_date, end_date), status='Cancelled').count()
+
+    # Retrieve top selling products
+    top_products = OrderProduct.objects.filter(order__created_at__range=(start_date, end_date)) \
+        .values('product__product_name') \
+        .annotate(total_quantity_sold=Sum('quantity')) \
+        .order_by('-total_quantity_sold')[:5]
+    top_products_data = [{'product_name': product['product__product_name'], 'total_quantity': product['total_quantity_sold']} for product in top_products]
+
+    # Retrieve order status distribution (Example)
+    order_status_data = Order.objects.filter(created_at__range=(start_date, end_date)).values('status').annotate(count=Count('id'))
+    order_status_data = [{'status': item['status'], 'count': item['count']} for item in order_status_data]
+
+    # Prepare data for JSON serialization
+    sales_data = json.dumps([])  # Placeholder for sales data
+    order_status_data = json.dumps(order_status_data)
+    top_products_data_json = json.dumps(top_products_data)
+
+    context = {
+        'start_date': start_date,
+        'end_date': end_date,
+        'total_sales': total_sales,
+        'total_orders': total_orders,
+        'avg_order_value': avg_order_value,
+        'new_customers': new_customers,
+        'total_refunds': total_refunds,
+        'refund_count': refund_count,
+        'top_products': top_products_data_json,
+        'sales': sales_data,
+        'order_status': order_status_data,
+    }
+
+    return render(request, 'admindashboard.html', context)
+
+#..........................................
 def decorator(request):
     return render(request, 'decorator.html')
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -668,50 +726,77 @@ def authenticate_paypal_client(request):
 
 
 
+import uuid
+from datetime import datetime
+import requests
+from django.http import JsonResponse
+from django.shortcuts import redirect
+
+
 def refund_payment(request, order_id):
- # Authenticate the PayPal client
- access_token = authenticate_paypal_client(request)
- if access_token is None:
-    return JsonResponse({"error": "Failed to authenticate PayPal client"}, status=401)
+    # Authenticate the PayPal client
+    access_token = authenticate_paypal_client(request)
+    if access_token is None:
+        return JsonResponse({"error": "Failed to authenticate PayPal client"}, status=401)
 
- # Get the order
- order = Order.objects.get(id=order_id)
+    # Get the order
+    order = Order.objects.get(id=order_id)
 
- # Get the payment ID from the order
- payment_id = order.payment.payment_id
+    # Get the payment associated with the order
+    payment = order.payment
 
- # Get the authorization
- headers = {
-    'Content-Type': 'application/json',
-    'Authorization': f'Bearer {access_token}',
- }
+    if payment.payment_method == "PayPal":
+        # PayPal refund logic
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {access_token}',
+        }
 
- request_id = str(uuid.uuid4())
+        request_id = str(uuid.uuid4())
+        invoice_id = f"{order_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
- invoice_id = f"{order_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        headers['PayPal-Request-Id'] = request_id
+        headers['Prefer'] = 'return=representation'
+        data = {
+            "amount": {
+                "value": f"{order.order_total}",
+                "currency_code": "USD"
+            },
+            "invoice_id": invoice_id,
+            "note_to_payer": "Cancelled_Order"
+        }
 
- # Issue a refund
- headers['PayPal-Request-Id'] = request_id
+        response = requests.post(
+            f'https://api-m.sandbox.paypal.com/v2/payments/captures/{payment.payment_id}/refund',
+            headers=headers,
+            json=data
+        )
 
- headers['Prefer'] = 'return=representation'
- data = f'{{ "amount": {{ "value": "{order.order_total}", "currency_code": "USD" }}, "invoice_id": "{invoice_id}", "note_to_payer": "Cancelled_Order" }}'
- response = requests.post(f'https://api-m.sandbox.paypal.com/v2/payments/captures/{payment_id}/refund', headers=headers, data=data)
- print(response.json())
+        if response.status_code == 201:
+            refund_response = response.json()
+            order.is_refunded = True
+            order.save()
 
- if response.status_code == 201:
-    refund_response = response.json()
-    order.is_refunded = True
-    order.save()
+            user_wallet, created =  wallet.objects.get_or_create(user=order.user)
+            user_wallet.amount += float(refund_response['amount']['value'])
+            user_wallet.save()
 
-    user_wallet, created = wallet.objects.get_or_create(user=order.user)
-    user_wallet.amount += float(refund_response['amount']['value'])
-    user_wallet.save()
+            return redirect('cancelled_orders')
+        else:
+            return JsonResponse({"error": "Failed to refund capture"}, status=response.status_code)
+    elif payment.payment_method == "Wallet":
+        # Wallet refund logic
+        user_wallet, created = wallet.objects.get_or_create(user=order.user)
+        user_wallet.amount += order.order_total
+        user_wallet.save()
 
+        order.is_refunded = True
+        order.save()
 
+        return redirect('cancelled_orders')
+    else:
+        return JsonResponse({"error": "Unknown payment method"}, status=400)
 
-    return redirect('cancelled_orders')
- else:
-    return JsonResponse({"error": "Failed to refund capture"}, status=response.status_code)
 
 
 def orders(request):

@@ -106,87 +106,152 @@ def cod_invoice(request, order_id):
     return HttpResponse('PDF generation failed', status=500)
 
 
+def wallet_invoice(request, order_id):
+    order = Order.objects.get(id=order_id)
+    discount = 0
+    if order.coupon:
+        discount  = order.coupon.discount_price
+    ordered_products = OrderProduct.objects.filter(order_id=order.id) #type:ignore
+    subtotal = 0
+   
+    for item in ordered_products:
+        subtotal += item.product_price * item.quantity
+
+    context = {
+        'order': order,
+        'order_number': order.order_number,
+        'transID': "N.A",
+        'ordered_products': ordered_products,
+        'subtotal': subtotal,
+        'status': "COMPLETED",
+        'discount': discount,
+        'grand_total': order.order_total -discount
+    }
+
+    template_path = 'orders/invoice.html'  # Replace with the path to your HTML template
+    pdf_response = render_to_pdf(template_path, context)
+
+    if pdf_response:
+        response = HttpResponse(pdf_response.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename=invoice_{order.order_number}.pdf'
+        return response
+
+    # Handle the case where PDF generation fails
+    return HttpResponse('PDF generation failed', status=500)
+
+
 # ================================================ PAYMENTS =======================================================================================================================
 
-def payments(request):
-    body = json.loads(request.body)
-    order = Order.objects.get(user=request.user, is_ordered=False, order_number=body['orderID'])
-    
-    # Transactions details 
-    payment = Payment(
-        user=request.user,
-        transaction_id=body['transID'],
-        payment_id=body['paymentID'],
-        payment_method=body['payment_method'],
-        amount_paid=order.order_total,
-        status=body['status'],
-    )
-    
-    if order.coupon:
-        payment.amount_paid -= order.coupon.discount_price  # type: ignore
-    payment.save()
-    
-    if body['status'] != 'Success':
-        # Handle failed payment
-        order.payment = payment
-        order.status = 'Pending'
-        order.save()
-        data = {
-            'order_number': order.order_number,
-            'status': 'Payment Pending',
-        }
-        return JsonResponse(data)
-    
-    # If payment is successful
-    order.payment = payment
-    order.is_ordered = True
-    order.save()
-    
-    # Move Cart Items to Order Product 
-    cart_items = CartItem.objects.filter(user=request.user)
-    
-    for item in cart_items:
-        orderproduct = OrderProduct()
-        orderproduct.order = order
-        orderproduct.payment = payment
-        orderproduct.user = request.user
-        orderproduct.product = item.product
-        orderproduct.quantity = item.quantity
-        orderproduct.product_price = item.variation.discounted_price  # type: ignore
-        orderproduct.ordered = True
-        orderproduct.save()
-        
-        cart_item = CartItem.objects.get(id=item.pk)
-        
-        orderproduct = OrderProduct.objects.get(id=orderproduct.pk)
-        orderproduct.variation = cart_item.variation
-        orderproduct.save()
-        
-        # Reduce the Stock
-        variation = Variation.objects.get(product=item.product, id=item.variation.pk)  # type: ignore
-        variation.quantity -= item.quantity
-        variation.save()
-    
-    # Clear Cart
-    CartItem.objects.filter(user=request.user).delete()
-    
-    # Send order received mail to customer
-    mail_subject = 'Order Placed'
-    message = render_to_string('orders/order_received_email.html', {
-        'user': request.user,
-        'order': order,
-    })
-    to_email = request.user.email
-    send_mail = EmailMessage(mail_subject, message, to=[to_email])
-    send_mail.send()
-    
-    # Send order number and transaction id back to send Data
-    data = {
-        'order_number': order.order_number,
-        'transID': payment.transaction_id,
-    }
-    return JsonResponse(data)
 
+
+
+
+import logging
+
+
+# Configure logging
+logger = logging.getLogger(__name__)
+import json
+import logging
+from django.http import JsonResponse
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+def payments(request):
+    try:
+        body = json.loads(request.body)
+        logger.info(f"Received payment request: {body}")
+        
+        order = Order.objects.get(user=request.user, is_ordered=False, order_number=body['orderID'])
+
+        # Transaction details
+        payment = Payment(
+            user=request.user,
+            transaction_id=body['transID'],
+            payment_id=body['paymentID'],
+            payment_method=body['payment_method'],
+            amount_paid=order.order_total,
+            status=body['status'],
+        )
+
+        if order.coupon:
+            payment.amount_paid -= order.coupon.discount_price  # type: ignore
+
+        payment.save()
+        order.payment = payment
+
+        # Log payment details
+        logger.info(f"Payment details saved: {payment}")
+
+        # Check payment status
+        if payment.status.lower() != 'completed':  # Adjusted condition to check for successful payment
+            order.status = 'Payment Pending'
+            order.save()
+            data = {
+                'status': 'failed',
+                'message': 'Payment failed, please try again.',
+                'order_number': order.order_number,
+            }
+            logger.warning(f"Payment failed for order {order.order_number}: {payment.status}")
+            return JsonResponse(data, status=400)
+
+        order.is_ordered = True
+        order.save()
+
+        # Move Cart Items to Order Product
+        cart_items = CartItem.objects.filter(user=request.user)
+        for item in cart_items:
+            orderproduct = OrderProduct()
+            orderproduct.order = order
+            orderproduct.payment = payment
+            orderproduct.user = request.user
+            orderproduct.product = item.product
+            orderproduct.quantity = item.quantity
+            orderproduct.product_price = item.variation.discounted_price  # type: ignore
+            orderproduct.ordered = True
+            orderproduct.save()
+
+            cart_item = CartItem.objects.get(id=item.pk)
+            orderproduct = OrderProduct.objects.get(id=orderproduct.pk)
+            orderproduct.variation = cart_item.variation
+            orderproduct.save()
+
+            # Reduce the Stock
+            variation = Variation.objects.get(product=item.product, id=item.variation.pk)  # type: ignore
+            variation.quantity -= item.quantity
+            variation.save()
+
+        # Clear Cart
+        CartItem.objects.filter(user=request.user).delete()
+
+        # Send order received mail to customer
+        mail_subject = 'Order Placed'
+        message = render_to_string('orders/order_received_email.html', {
+            'user': request.user,
+            'order': order,
+        })
+        to_email = request.user.email
+        send_mail = EmailMessage(mail_subject, message, to=[to_email])
+        send_mail.send()
+
+        # Send order number and transaction id back to send Data
+        data = {
+            'status': 'success',
+            'order_number': order.order_number,
+            'transID': payment.transaction_id,
+        }
+        logger.info(f"Order completed successfully: {data}")
+        return JsonResponse(data)
+
+    except Order.DoesNotExist:
+        logger.error("Order not found.")
+        return JsonResponse({'error': 'Order not found.'}, status=404)
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 # ================================ PLACE ORDER ===================================================================================================================
@@ -600,7 +665,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
 
-
+import uuid
 
 
 @csrf_exempt
@@ -624,13 +689,14 @@ def pay_using_wallet(request):
             # Deduct the amount from the wallet
             user_wallet.amount -= order.order_total
             user_wallet.save()
-
+            transaction_id = str(uuid.uuid4())
             # Create payment
             payment = Payment.objects.create(
                 user=request.user,
                 amount_paid=order.order_total,
                 payment_method=payment_method,
-                status='Completed'
+                status='Completed',
+                transaction_id =transaction_id,
             )
             order.payment = payment
             order.is_ordered = True

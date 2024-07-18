@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
 
-    {% block content %}
-
- <!-- Content Section -->
+{% block content %}
+    <!-- Content Section -->
     <div class="container mt-5">
         <h1>Admin Dashboard</h1>
         <form method="get" class="form-inline mb-4">
@@ -45,26 +44,7 @@
             </div>
         </div>
 
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title">New Customers</h5>
-                        <p class="card-text">{{ new_customers }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <h5 class="card-title">Total Refunds</h5>
-                        <p class="card-text">${{ total_refunds }}</p>
-                        <p class="card-text">Refund Count: {{ refund_count }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        <!-- New row for charts -->
         <div class="row">
             <div class="col-md-6">
                 <div class="card mb-4">
@@ -78,24 +58,18 @@
                 <div class="card mb-4">
                     <div class="card-body">
                         <h5 class="card-title">Order Status Distribution</h5>
-                        <canvas id="orderStatusChart"></canvas>
+                        <canvas id="orderStatusChart" style="max-height: 300px;"></canvas>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="row">
-            <div class="col-md-12">
+            <div class="col-md-6">
                 <div class="card mb-4">
                     <div class="card-body">
                         <h5 class="card-title">Top Selling Products</h5>
-                        <ul class="list-group">
-                            {% for product in top_products %}
-                                <li class="list-group-item">
-                                    {{ product.product__name }} - {{ product.total_quantity }} sold
-                                </li>
-                            {% endfor %}
-                        </ul>
+                        <canvas id="topSellingProductsChart" style="max-height: 300px;"></canvas>
                     </div>
                 </div>
             </div>
@@ -162,8 +136,40 @@
                     maintainAspectRatio: false,
                 }
             });
+
+            // Top Selling Products Chart
+            var topSellingData = JSON.parse('{{ top_products|safe }}');
+            var topSellingChartCtx = document.getElementById('topSellingProductsChart').getContext('2d');
+            var topSellingChart = new Chart(topSellingChartCtx, {
+                type: 'pie',
+                data: {
+                    labels: topSellingData.map(item => item.product_name),
+                    datasets: [{
+                        label: 'Top Selling Products',
+                        data: topSellingData.map(item => item.total_quantity),
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.2)',
+                            'rgba(54, 162, 235, 0.2)',
+                            'rgba(255, 206, 86, 0.2)',
+                            'rgba(75, 192, 192, 0.2)',
+                            'rgba(153, 102, 255, 0.2)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                }
+            });
         });
     </script>
-
-    
-    {% endblock content %}
+{% endblock %}

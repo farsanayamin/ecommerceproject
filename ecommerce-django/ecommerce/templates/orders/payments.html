@@ -187,7 +187,15 @@
           })
           .then((response) => response.json())
           .then((data) => {
-            window.location.href = redirect_url + '?order_number=' + data.order_number + '&transaction_id=' + data.transID;
+            if (data.status === 'success') {
+              window.location.href = redirect_url + '?order_number=' + data.order_number + '&transaction_id=' + data.transID;
+            } else {
+              alert('Payment failed: ' + data.message);
+            }
+          })
+          .catch((error) => {
+            console.error('Error:', error);
+            alert('An error occurred during the payment process. Please try again.');
           });
         }
       });

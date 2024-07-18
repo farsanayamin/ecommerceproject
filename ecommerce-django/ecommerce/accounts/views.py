@@ -187,11 +187,15 @@ def logout(request):
 #==============================
 
 from django.utils import timezone
+from django.shortcuts import redirect, render
+from django.contrib import messages
+from django.views.decorators.cache import never_cache
+from accounts.models import Account
+
 
 def is_otp_expired(account):
     current_time = timezone.now()
     otp_expiry_time = account.otp_created + timezone.timedelta(minutes=2)  # Adjust as needed
-    
     return current_time > otp_expiry_time
 
 @never_cache
@@ -199,15 +203,10 @@ def otp_verification(request, id):
     if request.method == "POST":
         account = Account.objects.get(id=id)
         entered_otp = request.POST.get("otp")
-        print("Entered OTP:", int(entered_otp))
         
         if is_otp_expired(account):
             messages.error(request, "OTP has expired, please generate a new one.")
             return redirect('otp_verification', id=id)
-        
-        print("Generated OTP:", account.otp_fld)
-        #otp_verified = generate_otp == entered_otp
-        #print("OTP Verified:", otp_verified)
         
         if str(account.otp_fld) == str(entered_otp):
             account.is_active = True
@@ -220,28 +219,18 @@ def otp_verification(request, id):
 
     return render(request, 'accounts/otp.html', {'id': id})
 
-# resend otp
+# Resend OTP View
 @never_cache
 def resendotp(request, id):
     try:
-        # Retrieve the user with the given ID from the database
         user = Account.objects.get(id=id)
-        
-        
-        # Generate a new OTP
         new_otp = generate_otp(user)
-       
-        # Send the new OTP via email
         send_otp_email(user, new_otp)
-        
-        # Redirect to the enterotp page with the user ID
+        messages.success(request, "A new OTP has been sent to your email.")
         return redirect('otp_verification', id=id)
-    
     except Account.DoesNotExist:
-        # If the user with the given ID doesn't exist, display an error message
         messages.error(request, "User not found.")
         return redirect('otp_verification', id=id)
-
 
 # reset password
 from django.shortcuts import render, redirect
