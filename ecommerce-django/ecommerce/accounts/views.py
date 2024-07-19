@@ -195,7 +195,7 @@ from accounts.models import Account
 
 def is_otp_expired(account):
     current_time = timezone.now()
-    otp_expiry_time = account.otp_created + timezone.timedelta(minutes=2)  # Adjust as needed
+    otp_expiry_time = account.otp_created + timezone.timedelta(minutes=1)  # Adjust as needed
     return current_time > otp_expiry_time
 
 @never_cache

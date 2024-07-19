@@ -1,30 +1,127 @@
 {% extends "home/base.html" %}
 
 {% block content %}
-<h2>Enter OTP</h2>
+<div class="container mt-5">
+    <h2 class="text-center">Enter OTP</h2>
 
-<!-- Display error messages -->
-{% if messages %}
-    {% for message in messages %}
-        <div class="alert alert-{{ messages }}">
-            {{ message }}
+    <!-- Display error messages -->
+    {% if messages %}
+        <div class="mt-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
         </div>
-        {% if "expired" in message|striptags|lower %}
-            <!-- If OTP expired, display a resend button -->
-            <form method="post" action="{% url 'resendotp' id=id %}">
-                {% csrf_token %}
-                <button type="submit">Resend OTP</button>
-            </form>
-        {% endif %}
-    {% endfor %}
-{% endif %}
+    {% endif %}
 
+    <div class="mt-3 text-center">
+        <form method="post" action="{% url 'otp_verification' id=id %}" class="d-inline-block">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="otp">OTP:</label>
+                <input type="text" id="otp" name="otp" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
 
-<form method="post" action="{% url 'otp_verification' id=id %}">
-    {% csrf_token %}
-    <label for="otp">OTP:</label>
-    <input type="text" id="otp" name="otp" required>
-    <button type="submit">Submit</button>
-</form>
+    <div class="text-center mt-3">
+        <div class="timer-container">
+            <div class="timer-circle" id="timer-circle">
+                <div class="timer-text" id="timer-text">01:00</div>
+            </div>
+        </div>
+        <p>OTP will expire in <span id="timer">01:00</span></p>
+    </div>
+
+    <div class="text-center mt-3" id="resend-container" style="display:none;">
+        <form method="post" action="{% url 'resendotp' id=id %}" class="text-center">
+            {% csrf_token %}
+            <button type="submit" id="resend-button" class="btn btn-warning">Resend OTP</button>
+        </form>
+    </div>
+</div>
+
+<style>
+/* Circular Timer Styles */
+.timer-container {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    margin: 0 auto;
+}
+
+.timer-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: conic-gradient(#4caf50 var(--timer-progress), #ddd 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.timer-text {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+</style>
+
+<script>
+    // Timer countdown from 1 minute (60 seconds)
+    const OTP_EXPIRY_DURATION = 60; // OTP expires in 60 seconds
+
+    // Get the current time and OTP start time from localStorage
+    const currentTime = new Date().getTime();
+    let otpStartTime = localStorage.getItem('otpStartTime');
+
+    // If there's no start time, set it to the current time
+    if (!otpStartTime) {
+        otpStartTime = currentTime;
+        localStorage.setItem('otpStartTime', otpStartTime);
+    }
+
+    // Calculate remaining time for the timer
+    let remainingTime = OTP_EXPIRY_DURATION - Math.floor((currentTime - otpStartTime) / 1000);
+
+    const timerElement = document.getElementById('timer');
+    const timerCircle = document.getElementById('timer-circle');
+    const timerText = document.getElementById('timer-text');
+    const resendContainer = document.getElementById('resend-container');
+    const interval = setInterval(() => {
+        if (remainingTime <= 0) {
+            clearInterval(interval);
+            localStorage.removeItem('otpStartTime');
+            timerElement.textContent = `00:00`;
+            timerText.textContent = `00:00`;
+            timerCircle.style.setProperty('--timer-progress', '100%');
+            resendContainer.style.display = 'block';
+        } else {
+            const minutes = Math.floor(remainingTime / 60);
+            const seconds = remainingTime % 60;
+            const progress = ((OTP_EXPIRY_DURATION - remainingTime) / OTP_EXPIRY_DURATION) * 100;
+
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timerText.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timerCircle.style.setProperty('--timer-progress', progress + '%');
+
+            remainingTime--;
+        }
+    }, 1000);
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const expiredMessage = document.querySelector('.alert-warning') && document.querySelector('.alert-warning').textContent.toLowerCase().includes('expired');
+        if (expiredMessage) {
+            localStorage.removeItem('otpStartTime');
+        }
+    });
+</script>
 {% endblock content %}
-

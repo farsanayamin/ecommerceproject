@@ -126,7 +126,7 @@ def generate_otp(user):
     user.otp_created = timezone.now() 
     print("hiiiiiiiiii",user.otp_created) # Call timezone.now() as a function
     # Set the OTP expiry time (e.g., 2 minutes from now)
-    user.otp_expiry_time = timezone.now() + timezone.timedelta(minutes=2)
+    user.otp_expiry_time = timezone.now() + timezone.timedelta(minutes=1)
     print("model-Generated OTP:", otp_code)
     print("model-User:", user)
     # Save the user object
@@ -146,6 +146,6 @@ from django.utils import timezone
 
 def is_otp_expired(account):
     current_time = timezone.now()
-    otp_expiry_time = account.otp_created + timezone.timedelta(minutes=2)  # Adjust as needed
+    otp_expiry_time = account.otp_created + timezone.timedelta(minutes=1)  # Adjust as needed
     
     return current_time > otp_expiry_time
