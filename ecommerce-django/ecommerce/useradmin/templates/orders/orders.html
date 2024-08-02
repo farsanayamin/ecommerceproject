@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
 {% block content %}
-    <div class="container-fluid">
-        <h3>Orders </h3>
+<div class="container-fluid">
+    <h3>Orders</h3>
     <table class="table bg-white">
         <thead class="bg-info">
             <tr class="text-white">
@@ -17,23 +17,21 @@
         <tbody>
             {% for i in data %}
             <tr>
-                <th scope="row"> <a href="{% url 'order_detail_table' i.id %}">{{i.order_number}} </a></th>
-                <td> {{i.payment.status}} 
-                    
-                </td>
-                <td>$ {{i.order_total}} </td>
+                <th scope="row"><a href="{% url 'order_detail_table' i.id %}">{{ i.order_number }}</a></th>
+                <td>{{ i.payment.status }}</td>
+                <td>$ {{ i.order_total }}</td>
+                <td id="status-{{ i.id }}">{{ i.status }}</td>
+                <td>{{ i.created_at }}</td>
                 <td>
-                    {{i.status}}
+                    {% if i.status == 'New' %}
+                    <a href="{% url 'ship_order' i.id %}" class="btn btn-outline-success"> <i class="fa fa-shipping-fast"></i> Ship the Order</a>
+                    {% elif i.status == 'Shipped' %}
+                    <a href="{% url 'update_order_status' i.id %}" class="btn btn-outline-warning">On the Way</a>
+                    {% elif i.status == 'On the Way' %}
+                    <a href="{% url 'mark_as_delivered' i.id %}" class="btn btn-outline-primary">Delivered</a>
+                    {% endif %}
                 </td>
-                <td>
-                    {{i.created_at}}
-                </td>
-               <td>
-                {% if i.status == 'New' %}
-                <a href="{% url "ship" i.id %}" class="btn btn-outline-success"> <i class="fa fa-shipping-fast"></i> Ship the Order</a>             
-                {% endif %}
-                </td>
-           </tr>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
@@ -45,7 +43,7 @@
                 <a class="page-link" href="?page=1">&laquo; First</a>
             </li>
             <li class="page-item">
-                <a class="page-link" href="?page={{data.previous_page_number}}"> Previous </a>
+                <a class="page-link" href="?page={{ data.previous_page_number }}"> Previous </a>
             </li>
             {% else %}
             <li class="page-item disabled">
@@ -57,27 +55,26 @@
             {% endif %}
             <li class="page-item disabled">
                 <a href="#" class="page-link">
-                    Page : {{data.number}} of {{data.paginator.num_pages}}
+                    Page : {{ data.number }} of {{ data.paginator.num_pages }}
                 </a>
             </li>
             {% if data.has_next %}
             <li class="page-item">
-                <a class="page-link" href="?page={{data.next_page_number}}">next</a>
+                <a class="page-link" href="?page={{ data.next_page_number }}">next</a>
             </li>
             <li class="page-item">
-                <a href="?page={{data.paginator.num_pages}}" class="page-link">Last &raquo;</a>
+                <a href="?page={{ data.paginator.num_pages }}" class="page-link">Last &raquo;</a>
             </li>
             {% else %}
             <li class="page-item disabled">
                 <a class="page-link" href="#">next</a>
             </li>
             <li class="page-item disabled">
-                <a href="?page={{data.paginator.num_pages}}" class="page-link">Last &raquo;</a>
+                <a href="?page={{ data.paginator.num_pages }}" class="page-link">Last &raquo;</a>
             </li>
             {% endif %}
         </ul>
     </nav>
     {% endif %}
 </div>
-               
 {% endblock content %}

@@ -71,73 +71,7 @@ from django.http import HttpResponse
 import csv
 
 
-def download_sales_report(request):
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="sales_report.csv"'
 
-    writer = csv.writer(response)
-    writer.writerow(['Order Number', 'Order Total', 'Order Date', 'User', 'Product Name', 'Quantity', 'Price'])
-
-    period = request.GET.get('period', 'daily')
-    start_date_str = request.GET.get('start_date', '')
-    end_date_str = request.GET.get('end_date', '')
-
-    today = timezone.localtime().date()
-    start_date, end_date = None, None
-
-    print(f"Request Parameters: period={period}, start_date_str={start_date_str}, end_date_str={end_date_str}")
-
-    try:
-        if period == 'custom' and start_date_str and end_date_str:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() + timedelta(days=1)
-        else:
-            if period == 'weekly':
-                start_date = today - timedelta(days=today.weekday())
-                end_date = start_date + timedelta(days=7)
-            elif period == 'monthly':
-                start_date = today.replace(day=1)
-                next_month = start_date.replace(day=28) + timedelta(days=4)
-                end_date = next_month - timedelta(days=next_month.day - 1)
-            elif period == 'yearly':
-                start_date = today.replace(month=1, day=1)
-                end_date = start_date.replace(year=start_date.year + 1)
-            else:  # daily
-                start_date = today
-                end_date = start_date + timedelta(days=1)
-
-        # Make sure datetime objects are timezone-aware
-        start_date = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
-        end_date = timezone.make_aware(datetime.combine(end_date, datetime.min.time()))
-
-        print(f"Parsed Date Range: Start Date: {start_date}, End Date: {end_date}")
-    except ValueError as e:
-        print(f"Error parsing dates: {e}")
-        today = timezone.localtime().date()
-        start_date = timezone.make_aware(datetime.combine(today, datetime.min.time()))
-        end_date = start_date + timedelta(days=1)
-        print(f"Using Fallback Date Range: Start Date: {start_date}, End Date: {end_date}")
-
-    orders = Order.objects.filter(created_at__range=(start_date, end_date)).select_related('user')
-
-    print(f"Number of Orders: {orders.count()}")
-
-    for order in orders:
-        order_items = OrderProduct.objects.filter(order=order).select_related('product')
-        for order_item in order_items:
-            writer.writerow([
-                order.order_number,
-                order.order_total,
-                order.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                order.user.username,
-                order_item.product.product_name,
-                order_item.quantity,
-                order_item.product_price,
-            ])
-
-            print(f"Order: {order.order_number}, Order Item: {order_item.product.product_name}")
-
-    return response
 
 #def admindashboard(request):
     #return render(request, 'admindashboard.html')
@@ -148,8 +82,21 @@ import json
 from django.db.models import Sum
 
 def admindashboard(request):
-    start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
+    # Get start_date and end_date from GET parameters
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+
+    # Default to last week if no dates are provided
+    if not start_date_str or not end_date_str:
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=7)
+    else:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+    # Convert to timezone-aware datetimes
+    start_date = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+    end_date = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
 
     # Retrieve total sales for the given date range
     total_sales = Order.objects.filter(created_at__range=(start_date, end_date)).aggregate(total_sales=Sum('order_total'))['total_sales'] or 0
@@ -160,10 +107,10 @@ def admindashboard(request):
     # Retrieve average order value for the given date range
     avg_order_value = Order.objects.filter(created_at__range=(start_date, end_date)).aggregate(avg_order_value=Avg('order_total'))['avg_order_value'] or 0
 
-    # Retrieve new customers count for the given date range (Example)
+    # Retrieve new customers count for the given date range
     new_customers = Order.objects.filter(created_at__range=(start_date, end_date), user__date_joined__range=(start_date, end_date)).count()
 
-    # Retrieve total refunds amount and count for the given date range (Example)
+    # Retrieve total refunds amount and count for the given date range
     total_refunds = Order.objects.filter(created_at__range=(start_date, end_date), status='Cancelled').aggregate(total_refunds=Sum('order_total'))['total_refunds'] or 0
     refund_count = Order.objects.filter(created_at__range=(start_date, end_date), status='Cancelled').count()
 
@@ -174,18 +121,27 @@ def admindashboard(request):
         .order_by('-total_quantity_sold')[:5]
     top_products_data = [{'product_name': product['product__product_name'], 'total_quantity': product['total_quantity_sold']} for product in top_products]
 
-    # Retrieve order status distribution (Example)
-    order_status_data = Order.objects.filter(created_at__range=(start_date, end_date)).values('status').annotate(count=Count('id'))
-    order_status_data = [{'status': item['status'], 'count': item['count']} for item in order_status_data]
+    # Retrieve order status distribution
+    order_statuses = ['Cancelled', 'Returned', 'Delivered', 'On the Way']
+    order_status_data = Order.objects.filter(created_at__range=(start_date, end_date), status__in=order_statuses) \
+        .values('status').annotate(count=Count('id'))
+    order_status_data_list = [{'status': item['status'], 'count': item['count']} for item in order_status_data]
+
+    # Retrieve sales data for the given date range
+    sales_data = Order.objects.filter(created_at__range=(start_date, end_date)) \
+        .values('created_at__date') \
+        .annotate(total_revenue=Sum('order_total')) \
+        .order_by('created_at__date')
+    sales_data_list = [{'date': item['created_at__date'].strftime('%Y-%m-%d'), 'total_revenue': item['total_revenue']} for item in sales_data]
 
     # Prepare data for JSON serialization
-    sales_data = json.dumps([])  # Placeholder for sales data
-    order_status_data = json.dumps(order_status_data)
+    sales_data_json = json.dumps(sales_data_list)
+    order_status_data_json = json.dumps(order_status_data_list)
     top_products_data_json = json.dumps(top_products_data)
 
     context = {
-        'start_date': start_date,
-        'end_date': end_date,
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
         'total_sales': total_sales,
         'total_orders': total_orders,
         'avg_order_value': avg_order_value,
@@ -193,11 +149,12 @@ def admindashboard(request):
         'total_refunds': total_refunds,
         'refund_count': refund_count,
         'top_products': top_products_data_json,
-        'sales': sales_data,
-        'order_status': order_status_data,
+        'sales': sales_data_json,
+        'order_status': order_status_data_json,
     }
 
     return render(request, 'admindashboard.html', context)
+
 
 #..........................................
 def decorator(request):
@@ -814,14 +771,35 @@ def orders(request):
 
 from .signals import order_shipped_signal
 
-def ship(request, order_id):
-  order = Order.objects.get(id = order_id)
+from django.shortcuts import get_object_or_404, redirect
+from django.http import JsonResponse
 
-  order.status = 'Shipped'
-  order.save()
-  order_shipped_signal.send(sender=ship, instance=order, request=request)
+from .signals import order_shipped_signal
 
-  return redirect('orders')
+def ship_order(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if order.status == 'New':
+        order.status = 'Shipped'
+        order.save()
+        order_shipped_signal.send(sender=ship_order, instance=order, request=request)
+    return redirect('orders')  # Adjust 'orders' to your order list view name
+
+def update_order_status(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if order.status == 'Shipped':
+        order.status = 'On the Way'
+    elif order.status == 'On the Way':
+        order.status = 'Delivered'
+    order.save()
+    return redirect('orders')
+
+def mark_as_delivered(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if order.status == 'On the Way':
+        order.status = 'Delivered'
+        order.save()
+    return redirect('orders')  # Adjust redirection as needed
+
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -861,12 +839,12 @@ def new_orders(request):
 
 def cancelled_orders(request):
     items_per_page = 15
-    p = Paginator(Order.objects.filter(status = 'Cancelled').order_by('-created_at'), items_per_page)
+    p = Paginator(Order.objects.filter(status__in=['Cancelled', 'Returned']).order_by('-created_at'), items_per_page)
     page = request.GET.get('page')
     data = p.get_page(page)
 
     context = {
-        'data':data
+        'data': data
     }
     return render(request, 'orders/cancelled_orders.html', context)
 
@@ -1101,7 +1079,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models.functions import TruncDate
 
 import json
-
+'''
 @login_required(login_url='login')
 def admindashboard(request):
     if request.user.is_admin:
@@ -1171,3 +1149,70 @@ def admindashboard(request):
         return render(request, 'admindashboard.html', context)
     else:
         return redirect('decorator')
+'''
+
+
+
+
+
+@login_required(login_url='login')
+def download_sales_report(request):
+    print("eeeeeeeeeeeeeeeeeeeeeeeeey")
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="sales_report.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(['Order Number', 'Order Total', 'Order Date', 'User', 'Product Name', 'Quantity', 'Price'])
+
+    period = request.GET.get('period', 'daily')
+    start_date_str = request.GET.get('start_date', '')
+    end_date_str = request.GET.get('end_date', '')
+
+    today = timezone.localtime().date()
+    start_date, end_date = None, None
+
+    # Determine the date range based on the period and provided dates
+    if period == 'custom' and start_date_str and end_date_str:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() + timedelta(days=1)
+        except ValueError:
+            # Fallback to default date range if parsing fails
+            start_date, end_date = today - timedelta(days=1), today + timedelta(days=1)
+    else:
+        if period == 'weekly':
+            start_date = today - timedelta(days=today.weekday())
+            end_date = start_date + timedelta(days=7)
+        elif period == 'monthly':
+            start_date = today.replace(day=1)
+            next_month = start_date.replace(day=28) + timedelta(days=4)
+            end_date = next_month - timedelta(days=next_month.day - 1)
+        elif period == 'yearly':
+            start_date = today.replace(month=1, day=1)
+            end_date = start_date.replace(year=start_date.year + 1)
+        else:  # daily
+            start_date = today
+            end_date = start_date + timedelta(days=1)
+
+    # Make sure datetime objects are timezone-aware
+    start_date = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+    end_date = timezone.make_aware(datetime.combine(end_date, datetime.min.time()))
+
+    # Filter orders based on the date range
+    orders = Order.objects.filter(created_at__range=(start_date, end_date)).select_related('user')
+
+    # Write order details to the CSV
+    for order in orders:
+        order_items = OrderProduct.objects.filter(order=order).select_related('product')
+        for order_item in order_items:
+            writer.writerow([
+                order.order_number,
+                order.order_total,
+                order.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                order.user.username,
+                order_item.product.product_name,
+                order_item.quantity,
+                order_item.product_price,
+            ])
+
+    return response

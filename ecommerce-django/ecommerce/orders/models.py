@@ -26,7 +26,8 @@ class Order(models.Model):
         ('New','New'),
         ('Shipped', 'Shipped'),
         ('Cancelled', 'Cancelled'),
-        ('Delivered','Delivered')
+        ('On the Way', 'On the Way'),
+        ('Delivered', 'Delivered'),
     )
 
     user = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True)
@@ -53,6 +54,7 @@ class Order(models.Model):
     coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, null=True, blank=True)
     restock = models.BooleanField(default=False)
     is_refunded = models.BooleanField(default=False)
+    return_reason = models.CharField(max_length=255, blank=True, null=True)
 
     def full_name(self):
         return f'{self.first_name} {self.last_name}'

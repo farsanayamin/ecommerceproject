@@ -33,9 +33,10 @@
             </div>
         </div>
         <div class="col-md-3">
-            <form action="{% url 'download_sales_report' %}">
-                <input type="hidden" value="{{ request.GET.start_date }}" name="start_date">
-                <input type="hidden" value="{{ request.GET.end_date }}" name="end_date">
+            <form method="GET" action="{% url 'download_sales_report' %}">
+                <input type="hidden" name="period" value="{{ period }}">
+                <input type="hidden" name="start_date" value="{{ start_date }}">
+                <input type="hidden" name="end_date" value="{{ end_date }}">
                 <button class="btn btn-primary mt-4">Download Sales Report</button>
             </form>
         </div>

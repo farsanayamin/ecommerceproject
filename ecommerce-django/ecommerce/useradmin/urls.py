@@ -49,7 +49,14 @@ urlpatterns = [
     path('delete_color/<int:color_id>', views.delete_color, name='delete_color'),
 # Orders------------------------------------------------------------------------------------------------------------------------------
     path('orders', views.orders, name='orders'),
-    path('ship/<int:order_id>', views.ship, name='ship'),
+    #path('ship/<int:order_id>', views.ship, name='ship'),
+    #path('delivered/<int:order_id>', views.mark_as_delivered, name='mark_as_delivered'),
+    path('ship_order/<int:order_id>/', views.ship_order, name='ship_order'),
+    path('update_order_status/<int:order_id>/', views.update_order_status, name='update_order_status'),
+    path('mark_as_delivered/<int:order_id>/', views.mark_as_delivered, name='mark_as_delivered'),
+    
+
+
     path('order_detail/<int:order_id>', views.order_detail, name='order_detail_table'),
     path('cancelled_orders', views.cancelled_orders, name='cancelled_orders'),
     path('restock/<int:order_id>', views.restock, name='restock'),

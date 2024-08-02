@@ -396,6 +396,18 @@ def cancel_order(request,order_id):
     order.save()
     return redirect('my_orders')
 
+def return_order(request, order_id):
+    order = Order.objects.get(id=order_id, user=request.user)
+    if request.method == 'POST':
+        return_reason = request.POST.get('return_reason')
+        # Process the return order logic here
+        order.status = 'Returned'
+        order.return_reason = return_reason  # Assuming you have a field for return reason
+        order.save()
+        messages.success(request, 'Your order has been returned.')
+    return redirect('my_orders')
+    
+
 
 
 
@@ -512,6 +524,8 @@ def initiate_refund(request,order_id):
         form = RefundForm()
 
     return render(request, 'wallet/initiate_refund.html', {'form': form,'order_id':order_id})
+
+
 """
 @login_required
 def wallet_balance(request,order_id):

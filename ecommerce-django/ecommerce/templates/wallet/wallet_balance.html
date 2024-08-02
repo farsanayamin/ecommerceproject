@@ -1,8 +1,11 @@
 {% extends 'home/base.html' %}
 {% load static %}
 
-
 {% block content %}
-  <h2>Your Wallet Balance</h2>
-  <p>Current Balance: {{ wallet.amount }}</p>
+<div class="d-flex justify-content-center" style="margin-top: 100px;">
+    <div class="text-center">
+        <h2>Your Wallet Balance</h2>
+        <p>Current Balance: {{ wallet.amount }}</p>
+    </div>
+</div>
 {% endblock %}

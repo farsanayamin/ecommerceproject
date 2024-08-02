@@ -39,7 +39,16 @@
                                             <td>{{order.created_at}}</td>
                                             <td>
                                                 <!-- Button trigger modal -->
-                                                {% if order.status != 'Cancelled' %}
+                                                {% if order.status == 'Delivered' %}
+                                                <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#returnOrderModal{{ order.id }}">
+                                                    Return Order
+                                                </button>
+                                                {% elif order.status == 'Returned' %}
+                                                <p class="text-success">
+                                                    <b>Order Returned</b>
+                                                </p>
+                                                <a href="{% url 'wallet_balance'  %}" class="btn btn-primary">Wallet</a>
+                                                {% elif order.status != 'Cancelled' %}
                                                 <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#cancelOrderModal{{ order.id }}">
                                                     Cancel Order
                                                 </button>
@@ -50,7 +59,7 @@
                                                 <a href="{% url 'wallet_balance'  %}" class="btn btn-primary">Wallet</a>
                                                 {% endif %}
 
-                                                <!-- Modal -->
+                                                <!-- Cancel Order Modal -->
                                                 <div class="modal fade" id="cancelOrderModal{{ order.id }}" tabindex="-1" role="dialog" aria-labelledby="cancelOrderModalLabel{{ order.id }}" aria-hidden="true">
                                                     <div class="modal-dialog modal-dialog-centered" role="document">
                                                         <div class="modal-content">
@@ -65,6 +74,43 @@
                                                             </div>
                                                             <div class="modal-footer">
                                                                 <a href="{% url "cancel_order" order.id %}" class="btn btn-warning">Cancel Order</a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Return Order Modal -->
+                                                <div class="modal fade" id="returnOrderModal{{ order.id }}" tabindex="-1" role="dialog" aria-labelledby="returnOrderModalLabel{{ order.id }}" aria-hidden="true">
+                                                    <div class="modal-dialog modal-dialog-centered" role="document">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title" id="returnOrderModalLabel{{ order.id }}">Return Order</h5>
+                                                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                                    <span aria-hidden="true">&times;</span>
+                                                                </button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                Are you sure you want to return your order?
+                                                                <form id="returnForm{{ order.id }}" method="post" action="{% url 'return_order' order.id %}">
+                                                                    {% csrf_token %}
+                                                                    <div class="form-group">
+                                                                        <label for="returnReason">Reason for Return:</label>
+                                                                        <select class="form-control" id="returnReason" name="return_reason">
+                                                                            <option value="Reason 1">Reason 1</option>
+                                                                            <option value="Reason 2">Reason 2</option>
+                                                                            <option value="Reason 3">Reason 3</option>
+                                                                            <option value="Reason 4">Reason 4</option>
+                                                                            <option value="Reason 5">Reason 5</option>
+                                                                            <option value="Reason 6">Reason 6</option>
+                                                                            <option value="Reason 7">Reason 7</option>
+                                                                            <option value="Reason 8">Reason 8</option>
+                                                                            <option value="Reason 9">Reason 9</option>
+                                                                            <option value="Reason 10">Reason 10</option>
+                                                                            <option value="Other">Other</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <button type="submit" class="btn btn-warning">Submit</button>
+                                                                </form>
                                                             </div>
                                                         </div>
                                                     </div>
