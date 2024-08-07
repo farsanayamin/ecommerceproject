@@ -92,13 +92,9 @@ from django.http import JsonResponse
 from .signals import order_shipped_signal
 
 def admindashboard(request):
-    if not request.user.is_admin:
-        return redirect('decorator')
-    
     # Get start_date and end_date from GET parameters
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
-
 
     # Default to last week if no dates are provided
     if not start_date_str or not end_date_str:
@@ -1106,71 +1102,6 @@ def delete_coupon(request, coupon_id):
 
 
 
-# Admin dashboard view
-@login_required(login_url='login')
-def admindashboard(request):
-    if request.user.is_admin:
-        yesterday = datetime.now() - timedelta(days=1)
-        today = datetime.now() + timedelta(days=1)
-        start_date = request.GET.get('start_date', yesterday.strftime('%Y-%m-%d'))
-        end_date = request.GET.get('end_date', today.strftime('%Y-%m-%d'))
-
-        try:
-            start_date = datetime.strptime(start_date, '%Y-%m-%d')
-        except ValueError:
-            start_date = datetime.strptime(yesterday.strftime('%Y-%m-%d'), '%Y-%m-%d')
-
-        try:
-            end_date = datetime.strptime(end_date, '%Y-%m-%d')
-        except ValueError:
-            end_date = datetime.strptime(today.strftime('%Y-%m-%d'), '%Y-%m-%d')
-
-        end_date = end_date + timedelta(days=1)
-
-        # Get orders within date range
-        orders = Order.objects.filter(Q(created_at__gte=start_date) & Q(created_at__lte=end_date))
-
-        # Calculate total sales and order count
-        total_sales = orders.aggregate(total_revenue=Sum('order_total'))['total_revenue'] or 0
-        total_orders = orders.count()
-
-        # Calculate average order value
-        avg_order_value = total_sales / total_orders if total_orders > 0 else 0
-
-        # Get sales by day
-        sales = orders.annotate(date=TruncDate('created_at')).values('date').annotate(total_revenue=Sum('order_total'))
-        sales_list = [{'date': sale['date'].strftime('%Y-%m-%d'), 'total_revenue': sale['total_revenue']} for sale in sales]
-        sales_json = json.dumps(sales_list, cls=DjangoJSONEncoder)
-
-        # New customers
-        new_customers = Account.objects.filter(date_joined__range=(start_date, end_date)).count()
-
-        # Order status distribution
-        order_statuses = orders.values('status').annotate(count=Count('id')).order_by('status')
-        order_status_list = [{'status': status['status'], 'count': status['count']} for status in order_statuses]
-        order_status_json = json.dumps(order_status_list, cls=DjangoJSONEncoder)
-
-        # Refunded orders
-        refunded_orders = orders.filter(is_refunded=True)
-        total_refunds = refunded_orders.aggregate(total_refund=Sum('order_total'))['total_refund'] or 0
-        refund_count = refunded_orders.count()
-
-        context = {
-            'orders': orders,
-            'sales': sales_json,
-            'total_sales': total_sales,
-            'total_orders': total_orders,
-            'avg_order_value': avg_order_value,
-            'new_customers': new_customers,
-            'order_status': order_status_json,
-            'total_refunds': total_refunds,
-            'refund_count': refund_count,
-            'start_date': start_date,
-            'end_date': end_date
-        }
-        return render(request, 'admindashboard.html', context)
-    else:
-        return redirect('decorator')
 
 
 @login_required(login_url='login')
