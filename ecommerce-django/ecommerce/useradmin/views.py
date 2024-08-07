@@ -26,65 +26,79 @@ from django.core.serializers.json import DjangoJSONEncoder
 import requests
 from django.db.models.functions import TruncDay,TruncMonth,TruncWeek,TruncYear
 from django.db.models import Sum
-
-
+from django.shortcuts import render, redirect
+from django.db.models import Q, Sum, Count
+from django.utils.timezone import datetime, timedelta
+from django.contrib.auth.decorators import login_required
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models.functions import TruncDate
+import json
 from django.utils import timezone
-
-
 from django.http import HttpResponse
 import csv
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db.models import Q
 # Adjust the import to match your app structure
-
 from django.http import HttpResponse
 import csv
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db.models import Q
-
-
 import csv
 from datetime import datetime, timedelta
 from django.http import HttpResponse
 from django.utils import timezone
 from django.db.models import Q
-
-
 import csv
 from datetime import datetime, timedelta
 from django.http import HttpResponse
 from django.utils import timezone
 from django.db.models import Q
-
-
 from django.utils import timezone
 import csv
 from datetime import datetime, timedelta
 from django.http import HttpResponse
-
-
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django.http import HttpResponse
 import csv
-
-
-
-
-#def admindashboard(request):
-    #return render(request, 'admindashboard.html')
 from django.shortcuts import render
 from django.db.models import Avg, Count, Sum
 import json
-
 from django.db.models import Sum
+from django.utils import timezone
+from datetime import datetime, timedelta
+from django.db.models import Sum, Q
+from django.db.models.functions import TruncDay, TruncWeek, TruncMonth, TruncYear
+import json
+from django.core.serializers.json import DjangoJSONEncoder
+import uuid
+from datetime import datetime
+import requests
+from django.http import JsonResponse
+from django.shortcuts import redirect
+import csv
+from django.http import HttpResponse
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from datetime import datetime, timedelta
+
+from .signals import order_shipped_signal
+
+from django.shortcuts import get_object_or_404, redirect
+from django.http import JsonResponse
+
+from .signals import order_shipped_signal
 
 def admindashboard(request):
+    if not request.user.is_admin:
+        return redirect('decorator')
+    
     # Get start_date and end_date from GET parameters
     start_date_str = request.GET.get('start_date')
     end_date_str = request.GET.get('end_date')
+
 
     # Default to last week if no dates are provided
     if not start_date_str or not end_date_str:
@@ -161,14 +175,6 @@ def decorator(request):
     return render(request, 'decorator.html')
 #:::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-from django.utils import timezone
-from datetime import datetime, timedelta
-from django.db.models import Sum, Q
-from django.db.models.functions import TruncDay, TruncWeek, TruncMonth, TruncYear
-import json
-from django.core.serializers.json import DjangoJSONEncoder
-
-
 @login_required(login_url='login')
 def useradmin(request):
     if not request.user.is_admin:
@@ -233,10 +239,10 @@ def useradmin(request):
     return render(request, 'index.html', context)
 
 #=====================================================CUSTOMERS=================================================================
-
+@login_required(login_url='login')
 def customers(request):
-    items_per_page = 10
     if request.user.is_admin:
+        items_per_page = 10
         accounts_with_profiles = Account.objects.filter(is_admin=False).select_related('userprofile').order_by('id')
         
         p = Paginator(accounts_with_profiles, items_per_page)
@@ -244,12 +250,12 @@ def customers(request):
         customers = p.get_page(page)
  
         context = {
-            'customers':customers
+            'customers': customers
         }
-        return render(request,'users/customers.html', context)
+        return render(request, 'users/customers.html', context)
     else:
         return redirect('decorator')
-   #----------------------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------------------- 
 
 def block_user(request,user_id):
     if request.user.is_admin:
@@ -326,326 +332,357 @@ def create_admin(request):
     
 
 # =================================================CATEGORIES===========================================================
+@login_required(login_url='login')
 def categories(request):
-    items_per_page = 15
-    p = Paginator(Category.objects.all(), items_per_page)
-    page = request.GET.get('page')
-    categories = p.get_page(page)
-    context = {
-        'categories':categories
-    }
-    return render(request,'categories/categories.html',context)
+    if request.user.is_admin:
+        items_per_page = 15
+        p = Paginator(Category.objects.all(), items_per_page)
+        page = request.GET.get('page')
+        categories = p.get_page(page)
+        context = {
+            'categories': categories
+        }
+        return render(request, 'categories/categories.html', context)
+    else:
+        return redirect('decorator')
+
+
 
 # -----------------------------------------------------------------------------------------------------------
 
-def edit_category(request,cat_id):
-    cat = Category.objects.get(id=cat_id)
-    
-    if request.method == 'POST':
-        form = CategoryForm(request.POST, request.FILES, instance = cat)
+def edit_category(request, cat_id):
+    if request.user.is_admin:
+        cat = Category.objects.get(id=cat_id)
+        
+        if request.method == 'POST':
+            form = CategoryForm(request.POST, request.FILES, instance=cat)
 
-        if form.is_valid():
-            form.save()
-            return redirect('categories')
-    
-    
-    form = CategoryForm(instance=cat)
+            if form.is_valid():
+                form.save()
+                return redirect('categories')
 
-    context = {
-        "form":form
-    }
-    return render(request, 'categories/category_form.html', context )
+        form = CategoryForm(instance=cat)
+
+        context = {
+            "form": form
+        }
+        return render(request, 'categories/category_form.html', context)
+    else:
+        return redirect('decorator')
 
 # ----------------------------------------------------------------------------------------------------------------
 
 def delete_category(request, cat_id):
-    cat = Category.objects.get(id=cat_id)
-    cat.delete()
-    return redirect('categories')
-
-# -----------------------------------------------------------------------------------------------------------------
+    if request.user.is_admin:
+        cat = Category.objects.get(id=cat_id)
+        cat.delete()
+        return redirect('categories')
+    else:
+        return redirect('decorator')
 
 def add_category(request):
-    if request.method == 'POST':
-        form = CategoryForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            return redirect('categories')
-    form  = CategoryForm()
-    context = {
-        'form': form
-    }
-    return render(request,'categories/category_form.html', context)
+    if request.user.is_admin:
+        if request.method == 'POST':
+            form = CategoryForm(request.POST, request.FILES)
+            if form.is_valid():
+                form.save()
+                return redirect('categories')
+        form = CategoryForm()
+        context = {
+            'form': form
+        }
+        return render(request, 'categories/category_form.html', context)
+    else:
+        return redirect('decorator')
 
 
 
 
 
 # =================================================================================BRANDS=========================================
+@login_required(login_url='login')
 def brands(request):
-    items_per_page = 15
-    p = Paginator(Brand.objects.all(), items_per_page)
-    page = request.GET.get('page')
-    data = p.get_page(page)
-    context = {
-        'data':data
-    }
-    return render(request, 'brands/brands.html', context)
+    if request.user.is_admin:
+        items_per_page = 15
+        p = Paginator(Brand.objects.all(), items_per_page)
+        page = request.GET.get('page')
+        data = p.get_page(page)
+        context = {
+            'data': data
+        }
+        return render(request, 'brands/brands.html', context)
+    else:
+        return redirect('decorator')
 
 
 # ------------------------------------------------------------------------------------------------------------------
 
-def edit_brand(request,brand_id):
-    brand = Brand.objects.get(id=brand_id)
-    
-    if request.method == 'POST':
-        form = BrandForm(request.POST, request.FILES, instance = brand)
+def edit_brand(request, brand_id):
+    if request.user.is_admin:
+        brand = Brand.objects.get(id=brand_id)
+        
+        if request.method == 'POST':
+            form = BrandForm(request.POST, request.FILES, instance=brand)
 
-        if form.is_valid():
-            form.save()
-            return redirect('brands')
-    
-    
-    form = BrandForm(instance=brand)
+            if form.is_valid():
+                form.save()
+                return redirect('brands')
 
-    context = {
-        "form":form
-    }
-    return render(request, 'brands/brand_form.html', context )
+        form = BrandForm(instance=brand)
+
+        context = {
+            "form": form
+        }
+        return render(request, 'brands/brand_form.html', context)
+    else:
+        return redirect('decorator')
 
 # -----------------------------------------------------------------------------------------------
-def delete_brand(request,brand_id):
-    brand = Brand.objects.get(id=brand_id)
-    brand.delete()
-    return redirect('brands')
-
-# ------------------------------------------------------------------------------------------------------
+def delete_brand(request, brand_id):
+    if request.user.is_admin:
+        brand = Brand.objects.get(id=brand_id)
+        brand.delete()
+        return redirect('brands')
+    else:
+        return redirect('decorator')
 
 def add_brand(request):
-    if request.method == 'POST':
-        form = BrandForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            return redirect('brands')
-    form = BrandForm()
-    context = {
-        'form':form,
-    }
-    return render(request, 'brands/brand_form.html', context)
+    if request.user.is_admin:
+        if request.method == 'POST':
+            form = BrandForm(request.POST, request.FILES)
+            if form.is_valid():
+                form.save()
+                return redirect('brands')
+        form = BrandForm()
+        context = {
+            'form': form,
+        }
+        return render(request, 'brands/brand_form.html', context)
+    else:
+        return redirect('decorator')
 
 
 # ===========================================================PRODUCTS==============================================
+@login_required(login_url='login')
 def products(request):
-    items_per_page = 15
-    p = Paginator(Product.objects.all(), items_per_page)
-    page = request.GET.get('page')
-    data = p.get_page(page)
-    context={
-        "data": data
-    }
-    return render(request, 'products/products.html', context)
+    if request.user.is_admin:
+        items_per_page = 15
+        p = Paginator(Product.objects.all(), items_per_page)
+        page = request.GET.get('page')
+        data = p.get_page(page)
+        context = {
+            "data": data
+        }
+        return render(request, 'products/products.html', context)
+    else:
+        return redirect('decorator')
 
 # ------------------------------------------------------------------------------------------------------------------
 
+@login_required(login_url='login')
 def edit_product(request, product_id):
+    if request.user.is_admin:
+        product = Product.objects.get(pk=product_id)
+        images = Images.objects.filter(product=product_id)
+        image_form = ImageForm()
+        if request.method == 'POST':
+            form = ProductForm(request.POST, request.FILES, instance=product)
+            images = request.FILES.getlist('Images')
 
-    product = Product.objects.get(pk = product_id)
-    images = Images.objects.filter(product = product_id)
-    image_form = ImageForm()
-    if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES, instance = product)
-        images = request.FILES.getlist('Images')
+            if form.is_valid():
+                for image in images:
+                    Images.objects.create(
+                        product=product,
+                        image=image
+                    )
+                form.save()
+                return redirect('products')
 
-        if form.is_valid():
-            for image in images:
-                pic = Images.objects.create(
-                    product = product,
-                    image = image
-                )
-            form.save()
-            
-            return redirect('products')
+        form = ProductForm(instance=product)
 
-    form = ProductForm(instance = product)
+        context = {
+            'form': form,
+            'image_form': image_form,
+            'images': images
+        }
 
-    context = {
-        'form':form,
-        'image_form':image_form,
-        'images':images
-    }
-
-    return render(request, 'products/product_form.html',context)
+        return render(request, 'products/product_form.html', context)
+    else:
+        return redirect('decorator')
 
 
 def delete_image(request, image_id):
-    image = Images.objects.get(id = image_id)
-    product_id = image.product.pk
+    if request.user.is_admin:
+        image = Images.objects.get(id=image_id)
+        product_id = image.product.pk
+        url = reverse('edit_product', kwargs={'product_id': product_id})
+        image.delete()
+        return redirect(url)
+    else:
+        return redirect('decorator')
 
-    url = reverse('edit_product', kwargs={'product_id': product_id})
-
-    image.delete()
-
-    return redirect(url)
   
 
 
 # --------------------------------------------------------------------------------------------------------
 
-def delete_product(request,product_id):
-    product = Product.objects.get(id = product_id)
-    product.delete()
-    return redirect('products')
+def delete_product(request, product_id):
+    if request.user.is_admin:
+        product = Product.objects.get(id=product_id)
+        product.delete()
+        return redirect('products')
+    else:
+        return redirect('decorator')
 
-# -----------------------------------------------------------------------------------
 def add_product(request):
-    if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES)
-        images = request.FILES.getlist('Images')
-        if form.is_valid():
-            product = form.save()
-            for image in images:
-                pic = Images.objects.create(
-                    product = product,
-                    image = image
-                )
-            return redirect('products')
-    form  = ProductForm()
-    image_form = ImageForm()
-    context = {
-        'form':form,
-        'image_form':image_form
-    }
-    return render(request,'products/product_form.html',context)
+    if request.user.is_admin:
+        if request.method == 'POST':
+            form = ProductForm(request.POST, request.FILES)
+            images = request.FILES.getlist('Images')
+            if form.is_valid():
+                product = form.save()
+                for image in images:
+                    Images.objects.create(
+                        product=product,
+                        image=image
+                    )
+                return redirect('products')
+        form = ProductForm()
+        image_form = ImageForm()
+        context = {
+            'form': form,
+            'image_form': image_form
+        }
+        return render(request, 'products/product_form.html', context)
+    else:
+        return redirect('decorator')
 
 
 
 # =============================================PRODUCT VARIATIONS==================================
+@login_required(login_url='login')
 def variations(request):
-    items_per_page = 15
-    p = Paginator(Variation.objects.all(), items_per_page)
-    page = request.GET.get('page')
-    data = p.get_page(page)
-    context={
-        "data": data
-    }
-    
-    return render(request,'product_variations/variations.html', context)
-
-
-# -------------------------------------------------------------------------------------------------
+    if request.user.is_admin:
+        items_per_page = 15
+        p = Paginator(Variation.objects.all(), items_per_page)
+        page = request.GET.get('page')
+        data = p.get_page(page)
+        context = {
+            "data": data
+        }
+        return render(request, 'product_variations/variations.html', context)
+    else:
+        return redirect('decorator')
 
 def edit_variation(request, variation_id):
-    variation = Variation.objects.get(id = variation_id)
+    if request.user.is_admin:
+        variation = Variation.objects.get(id=variation_id)
+        if request.method == 'POST':
+            form = VariationForm(request.POST, instance=variation)
+            if form.is_valid():
+                form.save()
+                return redirect('variations')
 
-    if request.method == 'POST':
-        form = VariationForm(request.POST, instance = variation)
-
-        if form.is_valid():
-             
-            form.save()
-           
-            return redirect('variations')
-
-    form = VariationForm(instance=variation)
-
-    context = {
-        'form':form
-    }
-
-    return render(request, 'product_variations/variation_form.html', context)
+        form = VariationForm(instance=variation)
+        context = {
+            'form': form
+        }
+        return render(request, 'product_variations/variation_form.html', context)
+    else:
+        return redirect('decorator')
 
 
 # ---------------------------------------------------------------------------------------
 
 def delete_variation(request, variation_id):
-    variation = Variation.objects.get(id = variation_id)
-    variation.delete()
-    return redirect('variations')
-
-
-# ---------------------------------------------------------------------------------------
-
+    if request.user.is_admin:
+        variation = Variation.objects.get(id=variation_id)
+        variation.delete()
+        return redirect('variations')
+    else:
+        return redirect('decorator')
 
 def add_variation(request):
-
-    if request.method == 'POST':
-        form = VariationForm(request.POST)
-
-        if form.is_valid():
-            try:
-                form.save()
-                return redirect('variations')
-            except:
-                messages.error(request, "Variation already Exists")
-                return redirect('add_varition')
-    
-    form = VariationForm()
-
-    context = {
-        'form': form
-    }
-
-    return render(request,'product_variations/variation_form.html', context)
+    if request.user.is_admin:
+        if request.method == 'POST':
+            form = VariationForm(request.POST)
+            if form.is_valid():
+                try:
+                    form.save()
+                    return redirect('variations')
+                except:
+                    messages.error(request, "Variation already Exists")
+                    return redirect('add_variation')
+        form = VariationForm()
+        context = {
+            'form': form
+        }
+        return render(request, 'product_variations/variation_form.html', context)
+    else:
+        return redirect('decorator')
 
 
 
 
 # ============================================================================ SIZES ========================================================================================
+@login_required(login_url='login')
 def colors_size(request):
-    sizes = Size.objects.all().order_by('name')
-    colors = Color.objects.all().order_by('name')
-    context = {
-        'sizes': sizes,
-        'colors': colors,
-    }
-    return render(request, "variation/colors&size.html",context)
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    if request.user.is_admin:
+        sizes = Size.objects.all().order_by('name')
+        colors = Color.objects.all().order_by('name')
+        context = {
+            'sizes': sizes,
+            'colors': colors,
+        }
+        return render(request, "variation/colors_size.html", context)
+    else:
+        return redirect('decorator')
 
 def add_size(request):
-    if request.method == 'POST':
-        form = SizeForm(request.POST)
-
-        if form.is_valid():
-            form.save()
-            return redirect('colors_size')
-        
-    form = SizeForm()
-    context = {
-        "form":form
-    }
-    return render(request, "variation/size_form.html", context)
-
-
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    if request.user.is_admin:
+        if request.method == 'POST':
+            form = SizeForm(request.POST)
+            if form.is_valid():
+                form.save()
+                return redirect('colors_size')
+        form = SizeForm()
+        context = {
+            "form": form
+        }
+        return render(request, "variation/size_form.html", context)
+    else:
+        return redirect('decorator')
 
 def delete_size(request, size_id):
-    size = Size.objects.get(id = size_id)
-    size.delete()
-    return redirect('colors_size')
-
-
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    if request.user.is_admin:
+        size = Size.objects.get(id=size_id)
+        size.delete()
+        return redirect('colors_size')
+    else:
+        return redirect('decorator')
 
 def add_color(request):
-    if request.method == 'POST':
-        form = ColorForm(request.POST)
-
-        if form.is_valid():
-            form.save()
-        return redirect('colors_size')
-    form = ColorForm()
-    context = {
-        'form':form
-    }
-    return render(request,'variation/color_form.html',context)
-
-# ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    if request.user.is_admin:
+        if request.method == 'POST':
+            form = ColorForm(request.POST)
+            if form.is_valid():
+                form.save()
+                return redirect('colors_size')
+        form = ColorForm()
+        context = {
+            'form': form
+        }
+        return render(request, 'variation/color_form.html', context)
+    else:
+        return redirect('decorator')
 
 def delete_color(request, color_id):
-    color = Color.objects.get(id = color_id)
-    color.delete()
-    return redirect('colors_size')
+    if request.user.is_admin:
+        color = Color.objects.get(id=color_id)
+        color.delete()
+        return redirect('colors_size')
+    else:
+        return redirect('decorator')
 
 def authenticate_paypal_client(request):
    # Define the URL for the OAuth 2.0 token endpoint
@@ -683,426 +720,416 @@ def authenticate_paypal_client(request):
 
 
 
-import uuid
-from datetime import datetime
-import requests
-from django.http import JsonResponse
-from django.shortcuts import redirect
-
 
 def refund_payment(request, order_id):
-    # Authenticate the PayPal client
-    access_token = authenticate_paypal_client(request)
-    if access_token is None:
-        return JsonResponse({"error": "Failed to authenticate PayPal client"}, status=401)
-
-    # Get the order
-    order = Order.objects.get(id=order_id)
-
-    # Get the payment associated with the order
-    payment = order.payment
-
-    if payment.payment_method == "PayPal":
-        # PayPal refund logic
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {access_token}',
-        }
-
-        request_id = str(uuid.uuid4())
-        invoice_id = f"{order_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
-        headers['PayPal-Request-Id'] = request_id
-        headers['Prefer'] = 'return=representation'
-        data = {
-            "amount": {
-                "value": f"{order.order_total}",
-                "currency_code": "USD"
-            },
-            "invoice_id": invoice_id,
-            "note_to_payer": "Cancelled_Order"
-        }
-
-        response = requests.post(
-            f'https://api-m.sandbox.paypal.com/v2/payments/captures/{payment.payment_id}/refund',
-            headers=headers,
-            json=data
-        )
-
-        if response.status_code == 201:
-            refund_response = response.json()
+    if request.user.is_admin:
+        access_token = authenticate_paypal_client(request)
+        if access_token is None:
+            return JsonResponse({"error": "Failed to authenticate PayPal client"}, status=401)
+        order = Order.objects.get(id=order_id)
+        payment = order.payment
+        if payment.payment_method == "PayPal":
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {access_token}',
+            }
+            request_id = str(uuid.uuid4())
+            invoice_id = f"{order_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            headers['PayPal-Request-Id'] = request_id
+            headers['Prefer'] = 'return=representation'
+            data = {
+                "amount": {
+                    "value": f"{order.order_total}",
+                    "currency_code": "USD"
+                },
+                "invoice_id": invoice_id,
+                "note_to_payer": "Cancelled_Order"
+            }
+            response = requests.post(
+                f'https://api-m.sandbox.paypal.com/v2/payments/captures/{payment.payment_id}/refund',
+                headers=headers,
+                json=data
+            )
+            if response.status_code == 201:
+                refund_response = response.json()
+                order.is_refunded = True
+                order.save()
+                user_wallet, created = wallet.objects.get_or_create(user=order.user)
+                user_wallet.amount += float(refund_response['amount']['value'])
+                user_wallet.save()
+                return redirect('cancelled_orders')
+            else:
+                return JsonResponse({"error": "Failed to refund capture"}, status=response.status_code)
+        elif payment.payment_method == "Wallet":
+            user_wallet, created = wallet.objects.get_or_create(user=order.user)
+            user_wallet.amount += order.order_total
+            user_wallet.save()
             order.is_refunded = True
             order.save()
-
-            user_wallet, created =  wallet.objects.get_or_create(user=order.user)
-            user_wallet.amount += float(refund_response['amount']['value'])
-            user_wallet.save()
-
             return redirect('cancelled_orders')
         else:
-            return JsonResponse({"error": "Failed to refund capture"}, status=response.status_code)
-    elif payment.payment_method == "Wallet":
-        # Wallet refund logic
-        user_wallet, created = wallet.objects.get_or_create(user=order.user)
-        user_wallet.amount += order.order_total
-        user_wallet.save()
-
-        order.is_refunded = True
-        order.save()
-
-        return redirect('cancelled_orders')
+            return JsonResponse({"error": "Unknown payment method"}, status=400)
     else:
-        return JsonResponse({"error": "Unknown payment method"}, status=400)
+        return redirect('decorator')
 
 
 
+@login_required(login_url='login')
 def orders(request):
-    items_per_page = 15
-    p = Paginator(Order.objects.all().order_by('-created_at'), items_per_page)
-    page = request.GET.get('page')
-    data = p.get_page(page)
-
-    context = {
-        'data':data
-    }
-    return render(request,'orders/orders.html', context)
-
+    if request.user.is_admin:
+        items_per_page = 15
+        p = Paginator(Order.objects.all().order_by('-created_at'), items_per_page)
+        page = request.GET.get('page')
+        data = p.get_page(page)
+        context = {
+            'data': data
+        }
+        return render(request, 'orders/orders.html', context)
+    else:
+        return redirect('decorator')
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-from .signals import order_shipped_signal
-
-from django.shortcuts import get_object_or_404, redirect
-from django.http import JsonResponse
-
-from .signals import order_shipped_signal
 
 def ship_order(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-    if order.status == 'New':
-        order.status = 'Shipped'
-        order.save()
-        order_shipped_signal.send(sender=ship_order, instance=order, request=request)
-    return redirect('orders')  # Adjust 'orders' to your order list view name
+    if request.user.is_admin:
+        order = get_object_or_404(Order, id=order_id)
+        if order.status == 'New':
+            order.status = 'Shipped'
+            order.save()
+            order_shipped_signal.send(sender=ship_order, instance=order, request=request)
+        return redirect('orders')
+    else:
+        return redirect('decorator')
 
 def update_order_status(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-    if order.status == 'Shipped':
-        order.status = 'On the Way'
-    elif order.status == 'On the Way':
-        order.status = 'Delivered'
-    order.save()
-    return redirect('orders')
+    if request.user.is_admin:
+        order = get_object_or_404(Order, id=order_id)
+        if order.status == 'Shipped':
+            order.status = 'On the Way'
+        elif order.status == 'On the Way':
+            order.status = 'Delivered'
+        order.save()
+        return redirect('orders')
+    else:
+        return redirect('decorator')
 
 def mark_as_delivered(request, order_id):
-    order = get_object_or_404(Order, id=order_id)
-    if order.status == 'On the Way':
-        order.status = 'Delivered'
-        order.save()
-    return redirect('orders')  # Adjust redirection as needed
+    if request.user.is_admin:
+        order = get_object_or_404(Order, id=order_id)
+        if order.status == 'On the Way':
+            order.status = 'Delivered'
+            order.save()
+        return redirect('orders')
+    else:
+        return redirect('decorator')
 
 
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+# Order detail view
+@login_required(login_url='login')
 def order_detail(request, order_id):
+    if request.user.is_admin:
+        order = get_object_or_404(Order, pk=order_id)
+        products = OrderProduct.objects.filter(order=order)
+        total_price = order.order_total
+        if order.coupon:
+            total_price -= order.coupon.discount_price
+        subtotal = sum(product.quantity * product.variation.discounted_price for product in products)
 
-    order = Order.objects.get(pk = order_id)
-    products = OrderProduct.objects.filter(order = order)
-    print(products)
-    total_price = order.order_total
-    if order.coupon:
-        total_price -= order.coupon.discount_price
-    subtotal = 0
-    for product in products:
-        subtotal += product.quantity * product.variation.discounted_price # type: ignore
+        context = {
+            'order': order,
+            'products': products,
+            'total_price': total_price,
+            'subtotal': subtotal
+        }
+        return render(request, 'orders/order_detail.html', context)
+    else:
+        return redirect('decorator')
 
-
-    context = {
-        'order': order,
-        'products': products,
-        'total_price': total_price,
-        'subtotal':subtotal
-    }
-    return render(request, 'orders/order_detail.html', context)
-
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# New orders view
+@login_required(login_url='login')
 def new_orders(request):
-    items_per_page = 20
-    p = Paginator(Order.objects.filter(status = 'New'), items_per_page)
-    page = request.GET.get('page')
-    data = p.get_page(page)    
-    context = {
-        'data': data
-    }
-    return render(request, 'orders/new_orders.html', context)
+    if request.user.is_admin:
+        items_per_page = 20
+        p = Paginator(Order.objects.filter(status='New'), items_per_page)
+        page = request.GET.get('page')
+        data = p.get_page(page)
+        context = {
+            'data': data
+        }
+        return render(request, 'orders/new_orders.html', context)
+    else:
+        return redirect('decorator')
 
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+# Cancelled orders view
+@login_required(login_url='login')
 def cancelled_orders(request):
-    items_per_page = 15
-    p = Paginator(Order.objects.filter(status__in=['Cancelled', 'Returned']).order_by('-created_at'), items_per_page)
-    page = request.GET.get('page')
-    data = p.get_page(page)
+    if request.user.is_admin:
+        items_per_page = 15
+        p = Paginator(Order.objects.filter(status__in=['Cancelled', 'Returned']).order_by('-created_at'), items_per_page)
+        page = request.GET.get('page')
+        data = p.get_page(page)
+        context = {
+            'data': data
+        }
+        return render(request, 'orders/cancelled_orders.html', context)
+    else:
+        return redirect('decorator')
 
-    context = {
-        'data': data
-    }
-    return render(request, 'orders/cancelled_orders.html', context)
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+# Restock view
+@login_required(login_url='login')
 def restock(request, order_id):
-    order = Order.objects.get(id = order_id)
-    order_products = OrderProduct.objects.filter(order = order)
+    if request.user.is_admin:
+        order = get_object_or_404(Order, id=order_id)
+        order_products = OrderProduct.objects.filter(order=order)
 
-    for order_product in order_products:
-        product = order_product.variation
-        product.quantity += order_product.quantity #type: ignore
+        for order_product in order_products:
+            product = order_product.variation
+            product.quantity += order_product.quantity
+            product.save()
 
-        product.save() #type: ignore
+        order.restock = True
+        order.save()
 
-    order.restock = True
-    order.save()
+        return redirect('cancelled_orders')
+    else:
+        return redirect('decorator')
 
-    return redirect('cancelled_orders')
-
-
-
-
-# =========================================================================== PRODUCT OFFER ==========================================================================================
-
+# Product offer views
+@login_required(login_url='login')
 def product_offer(request):
-    items_per_page = 20
-    p = Paginator(ProductOffer.objects.all().order_by('-id'), items_per_page)
-    page = request.GET.get('page')
-    data = p.get_page(page)  
-    context = {
-        'data': data
-    }
-    return render(request, 'product_offer/product_offer.html', context)
+    if request.user.is_admin:
+        items_per_page = 20
+        p = Paginator(ProductOffer.objects.all().order_by('-id'), items_per_page)
+        page = request.GET.get('page')
+        data = p.get_page(page)
+        context = {
+            'data': data
+        }
+        return render(request, 'product_offer/product_offer.html', context)
+    else:
+        return redirect('decorator')
 
-
-# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+@login_required(login_url='login')
 def add_product_offer(request):
-    if request.method == 'POST':
-        form = ProductOfferForm(request.POST)
-
-        if form.is_valid():
-            discount = form.cleaned_data['discount_rate']
-            order_type = form.cleaned_data['offer_type']
-            if discount < 0:
-                messages.error(request, "The discount rate should not be negative")
-                return redirect('add_product_offer')
-            if order_type == 'PERCENT' and discount > 80:
-                messages.error(request, "The discount percentage should be less than or equal to 80")
-                return redirect('add_product_offer')
-            form.save()
-            return redirect('product_offer')
-    form  = ProductOfferForm()
-
-    context = {
-        'form':form
-    }
-
-    return render(request, 'product_offer/product_offer_form.html', context)
-
-
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+    if request.user.is_admin:
+        if request.method == 'POST':
+            form = ProductOfferForm(request.POST)
+            if form.is_valid():
+                discount = form.cleaned_data['discount_rate']
+                order_type = form.cleaned_data['offer_type']
+                if discount < 0:
+                    messages.error(request, "The discount rate should not be negative")
+                    return redirect('add_product_offer')
+                if order_type == 'PERCENT' and discount > 80:
+                    messages.error(request, "The discount percentage should be less than or equal to 80")
+                    return redirect('add_product_offer')
+                form.save()
+                return redirect('product_offer')
+        form = ProductOfferForm()
+        context = {
+            'form': form
+        }
+        return render(request, 'product_offer/product_offer_form.html', context)
+    else:
+        return redirect('decorator')
+		
+		
+@login_required(login_url='login')
 def edit_product_offer(request, product_offer_id):
-    productOffer = ProductOffer.objects.get(id = product_offer_id)
-    if request.method == 'POST':
-        form = ProductOfferForm(request.POST, instance=productOffer)
-
-        if form.is_valid():
-            discount = form.cleaned_data['discount_rate']
-            order_type = form.cleaned_data['offer_type']
-            url = reverse('edit_product_offer', kwargs={'product_offer_id': product_offer_id})
-            if discount < 0:
-                messages.error(request, "The discount rate should not be negative")
-                return redirect(url)
-            if order_type == 'PERCENT' and discount > 80:
-                messages.error(request, "The discount percentage should be less than or equal to 80")
-                return redirect(url)
-            form.save()
-            return redirect('product_offer')
-    form = ProductOfferForm(instance=productOffer)
-    context = {
-        'form':form
-    }
-
-    return render(request, 'product_offer/product_offer_form.html', context)
-
-
+    if request.user.is_admin:
+        product_offer = get_object_or_404(ProductOffer, id=product_offer_id)
+        if request.method == 'POST':
+            form = ProductOfferForm(request.POST, instance=product_offer)
+            if form.is_valid():
+                discount = form.cleaned_data['discount_rate']
+                order_type = form.cleaned_data['offer_type']
+                url = reverse('edit_product_offer', kwargs={'product_offer_id': product_offer_id})
+                if discount < 0:
+                    messages.error(request, "The discount rate should not be negative")
+                    return redirect(url)
+                if order_type == 'PERCENT' and discount > 80:
+                    messages.error(request, "The discount percentage should be less than or equal to 80")
+                    return redirect(url)
+                form.save()
+                return redirect('product_offer')
+        form = ProductOfferForm(instance=product_offer)
+        context = {
+            'form': form
+        }
+        return render(request, 'product_offer/product_offer_form.html', context)
+    else:
+        return redirect('decorator')
 # ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+@login_required(login_url='login')
 def delete_product_offer(request, product_offer_id):
-    product_offer = ProductOffer.objects.get(id = product_offer_id)
-    product_offer.delete()
-    return redirect('product_offer')
+    if request.user.is_admin:
+        product_offer = get_object_or_404(ProductOffer, id=product_offer_id)
+        product_offer.delete()
+        return redirect('product_offer')
+    else:
+        return redirect('decorator')
 
-# ===================================================== CATEGORY OFFER ===============================================================================================================
-
+# Category offer views
+@login_required(login_url='login')
 def category_offer(request):
-    items_per_page = 20
-    p = Paginator(CategoryOffer.objects.all().order_by('-id'), items_per_page)
-    page = request.GET.get('page')
-    data = p.get_page(page)  
-    context = {
-        'data': data
-    }
-    return render(request, 'category_offer/category_offer.html', context)
+    if request.user.is_admin:
+        items_per_page = 20
+        p = Paginator(CategoryOffer.objects.all().order_by('-id'), items_per_page)
+        page = request.GET.get('page')
+        data = p.get_page(page)
+        context = {
+            'data': data
+        }
+        return render(request, 'category_offer/category_offer.html', context)
+    else:
+        return redirect('decorator')
 
-
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
+@login_required(login_url='login')
 def add_category_offer(request):
-    if request.method == 'POST':
-        form = CategoryOfferForm(request.POST)
+    if request.user.is_admin:
+        if request.method == 'POST':
+            form = CategoryOfferForm(request.POST)
+            if form.is_valid():
+                discount = form.cleaned_data['discount_rate']
+                order_type = form.cleaned_data['offer_type']
+                if discount < 0:
+                    messages.error(request, "The discount rate should not be negative")
+                    return redirect('add_category_offer')
+                if order_type == 'PERCENT' and discount > 80:
+                    messages.error(request, "The discount percentage should be less than or equal to 80")
+                    return redirect('add_category_offer')
+                form.save()
+                return redirect('category_offer')
+        form = CategoryOfferForm()
+        context = {
+            'form': form
+        }
+        return render(request, 'category_offer/category_offer_form.html', context)
+    else:
+        return redirect('decorator')
 
-        if form.is_valid():
-            discount = form.cleaned_data['discount_rate']
-            order_type = form.cleaned_data['offer_type']
-            if discount < 0:
-                messages.error(request, "The discount rate should not be negative")
-                return redirect('add_category_offer')
-            if order_type == 'PERCENT' and discount > 80:
-                messages.error(request, "The discount percentage should be less than or equal to 80")
-                return redirect('add_category_offer')
-            form.save()
-            return redirect('category_offer')
-    form  = CategoryOfferForm()
-
-    context = {
-        'form':form
-    }
-
-    return render(request, 'category_offer/category_offer_form.html', context)
-
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
+@login_required(login_url='login')
 def edit_category_offer(request, category_offer_id):
-    catOffer = CategoryOffer.objects.get(id = category_offer_id)
-    if request.method == 'POST':
-        form = CategoryOfferForm(request.POST, instance=catOffer)
+    if request.user.is_admin:
+        category_offer = get_object_or_404(CategoryOffer, id=category_offer_id)
+        if request.method == 'POST':
+            form = CategoryOfferForm(request.POST, instance=category_offer)
+            if form.is_valid():
+                discount = form.cleaned_data['discount_rate']
+                order_type = form.cleaned_data['offer_type']
+                url = reverse('edit_category_offer', kwargs={'category_offer_id': category_offer_id})
+                if discount < 0:
+                    messages.error(request, "The discount rate should not be negative")
+                    return redirect(url)
+                if order_type == 'PERCENT' and discount > 80:
+                    messages.error(request, "The discount percentage should be less than or equal to 80")
+                    return redirect(url)
+                form.save()
+                return redirect('category_offer')
+        form = CategoryOfferForm(instance=category_offer)
+        context = {
+            'form': form
+        }
+        return render(request, 'category_offer/category_offer_form.html', context)
+    else:
+        return redirect('decorator')
 
-        if form.is_valid():
-            discount = form.cleaned_data['discount_rate']
-            order_type = form.cleaned_data['offer_type']
-            url = reverse('edit_category_offer', kwargs={'category_offer_id': category_offer_id})
-            if discount < 0:
-                messages.error(request, "The discount rate should not be negative")
-                return redirect(url)
-            if order_type == 'PERCENT' and discount > 80:
-                messages.error(request, "The discount percentage should be less than or equal to 80")
-                return redirect(url)
-            form.save()
-            return redirect('category_offer')
-    form = CategoryOfferForm(instance=catOffer)
-    context = {
-        'form':form
-    }
-
-    return render(request, 'category_offer/category_offer_form.html', context)
-
-# --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+@login_required(login_url='login')
 def delete_category_offer(request, category_offer_id):
-    catOffer =  CategoryOffer.objects.get(id = category_offer_id)
-
-    catOffer.delete()
-    return redirect('category_offer')
-
+    if request.user.is_admin:
+        category_offer = get_object_or_404(CategoryOffer, id=category_offer_id)
+        category_offer.delete()
+        return redirect('category_offer')
+    else:
+        return redirect('decorator')
 
 # ===================================== COUPONS =============================================================================================================================================================================
 
+# Coupon views
+@login_required(login_url='login')
 def coupons(request):
-    data = Coupon.objects.all()
-    context = {
-        'data':data
-    }
-    return render(request, 'coupons/coupons.html', context)
+    if request.user.is_admin:
+        data = Coupon.objects.all()
+        context = {
+            'data': data
+        }
+        return render(request, 'coupons/coupons.html', context)
+    else:
+        return redirect('decorator')
 
-
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+@login_required(login_url='login')
 def add_coupon(request):
-    if request.method == 'POST':
-        form = CouponForm(request.POST)
+    if request.user.is_admin:
+        if request.method == 'POST':
+            form = CouponForm(request.POST)
+            if form.is_valid():
+                form.save()
+                return redirect('coupons')
+        form = CouponForm()
+        context = {
+            'form': form
+        }
+        return render(request, 'coupons/coupon_form.html', context)
+    else:
+        return redirect('decorator')
 
-        if form.is_valid():
-            form.save()
-            return redirect('coupons')
-    form = CouponForm()
-
-    context = {
-        'form':form
-    }
-
-    return render(request, 'coupons/coupon_form.html',context)
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+@login_required(login_url='login')
 def edit_coupon(request, coupon_id):
-    coupon = Coupon.objects.get(id = coupon_id)
+    if request.user.is_admin:
+        coupon = get_object_or_404(Coupon, id=coupon_id)
+        if request.method == 'POST':
+            form = CouponForm(request.POST, instance=coupon)
+            if form.is_valid():
+                form.save()
+                return redirect('coupons')
+        form = CouponForm(instance=coupon)
+        context = {
+            'form': form
+        }
+        return render(request, 'coupons/coupon_form.html', context)
+    else:
+        return redirect('decorator')
 
-    if request.method == 'POST':
-        form = CouponForm(request.POST, instance=coupon)
-        if form.is_valid():
-            form.save()
-            return redirect('coupons')
-    form = CouponForm(instance=coupon)
-    context = {
-        'form':form
-    }
-    return render(request, 'coupons/coupon_form.html', context)
-
-# -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
+@login_required(login_url='login')
 def delete_coupon(request, coupon_id):
-    coupon = Coupon.objects.get(id = coupon_id)
-    coupon.delete()
+    if request.user.is_admin:
+        coupon = get_object_or_404(Coupon, id=coupon_id)
+        coupon.delete()
+        return redirect('coupons')
+    else:
+        return redirect('decorator')
 
-    return redirect('coupons')
 
 
-from django.shortcuts import render, redirect
-from django.db.models import Q, Sum, Count
-from django.utils.timezone import datetime, timedelta
-from django.contrib.auth.decorators import login_required
-from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models.functions import TruncDate
 
-import json
-'''
+
+# Admin dashboard view
 @login_required(login_url='login')
 def admindashboard(request):
     if request.user.is_admin:
-        yesterday = datetime.now() - timedelta(days=1) 
+        yesterday = datetime.now() - timedelta(days=1)
         today = datetime.now() + timedelta(days=1)
         start_date = request.GET.get('start_date', yesterday.strftime('%Y-%m-%d'))
         end_date = request.GET.get('end_date', today.strftime('%Y-%m-%d'))
-        
+
         try:
             start_date = datetime.strptime(start_date, '%Y-%m-%d')
-        except:
+        except ValueError:
             start_date = datetime.strptime(yesterday.strftime('%Y-%m-%d'), '%Y-%m-%d')
-        
+
         try:
             end_date = datetime.strptime(end_date, '%Y-%m-%d')
-        except:
+        except ValueError:
             end_date = datetime.strptime(today.strftime('%Y-%m-%d'), '%Y-%m-%d')
-        
+
         end_date = end_date + timedelta(days=1)
 
         # Get orders within date range
         orders = Order.objects.filter(Q(created_at__gte=start_date) & Q(created_at__lte=end_date))
-        
+
         # Calculate total sales and order count
         total_sales = orders.aggregate(total_revenue=Sum('order_total'))['total_revenue'] or 0
         total_orders = orders.count()
@@ -1117,10 +1144,6 @@ def admindashboard(request):
 
         # New customers
         new_customers = Account.objects.filter(date_joined__range=(start_date, end_date)).count()
-
-        # Top selling products
-        #top_products = OrderProduct.objects.filter(order__in=orders).values('product__name').annotate(total_quantity=Sum('quantity')).order_by('-total_quantity')[:5]
-        #top_products = OrderProduct.objects.filter(order__in=orders).values('product__name').annotate(total_quantity=Sum('quantity')).order_by('-total_quantity')[:5]
 
         # Order status distribution
         order_statuses = orders.values('status').annotate(count=Count('id')).order_by('status')
@@ -1139,7 +1162,6 @@ def admindashboard(request):
             'total_orders': total_orders,
             'avg_order_value': avg_order_value,
             'new_customers': new_customers,
-            #'top_products': top_products,
             'order_status': order_status_json,
             'total_refunds': total_refunds,
             'refund_count': refund_count,
@@ -1149,15 +1171,10 @@ def admindashboard(request):
         return render(request, 'admindashboard.html', context)
     else:
         return redirect('decorator')
-'''
-
-
-
 
 
 @login_required(login_url='login')
 def download_sales_report(request):
-    print("eeeeeeeeeeeeeeeeeeeeeeeeey")
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="sales_report.csv"'
 
